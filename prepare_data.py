@@ -1,8 +1,7 @@
 import csv
 from datetime import datetime
-from dataclasses import dataclass
 import re
-from typing import Optional, List
+from typing import Optional, List, Tuple
 
 import openpyxl
 
@@ -12,9 +11,6 @@ from config import path_to_excel_workbook
 class Smartphones:
     def __init__(self):
         self.all_smartphones: Optional[List[Smartphone]] = []
-        # self.benchmarks_dict = {'GeekBench 4': self._from_geekbench4_table,
-        #                         '3DMark Sling Shot Extreme': self._from_sling_shot_and_antutu_tables,
-        #                         'battery_test': self._from_battery_test_table}
 
     @staticmethod
     def open_sheet(sheet_name):
@@ -56,14 +52,54 @@ class Smartphones:
         self._from_geekbench4_table()
 
 
-class GeekBench4:
+class Benchmark:
+
+    name: str = 'Benchmark name here'
+    subtests: Tuple[str] = ()
+
+    def __init__(self, smartphone):
+        self.smartphone: Smartphone = smartphone
+        self.list_of_values: List = self.make_list_of_values()
+
+    def make_list_of_values(self):
+        list_of_values = []
+        for attr in dir(self):
+            if 'score' in attr:
+                list_of_values.append(attr)
+
+        return list_of_values
+
+    def __str__(self):
+        response = (f'Smartphone {self.smartphone.name}, '
+                    f'results in {__class__.name}:\n')
+        response += f'Date: {self.smartphone.date}\n'
+
+        for name, value in zip(GeekBench4.subtests, self.list_of_values):
+            response += f'{name}: {getattr(self, value)}\n'
+
+
+class GeekBench4(Benchmark):
+
+    name: str = 'GeekBench 4'
+    subtests: Tuple[str] = ('Single-Core Score', 'Multi-Core Score', 'Total Score')
 
     def __init__(self, smartphone, all_cores_score, one_cores_score):
+        super().__init__(smartphone)
 
-        self.smartphone: Smartphone = smartphone
-        self.all_cores_score: int = all_cores_score
-        self.one_cores_score: int = one_cores_score
+        self.multi_core_score: int = all_cores_score
+        self.single_core_score: int = one_cores_score
         self.total_score: int = all_cores_score + one_cores_score
+        self.list_of_values: List[str] = self.make_list_of_values()
+
+    def __str__(self):
+        response = (f'Smartphone {self.smartphone.name}, '
+                    f'results in {GeekBench4.name}:\n')
+        response += f'Date: {self.smartphone.date}\n'
+
+        for name, value in zip(GeekBench4.subtests, self.list_of_values):
+            response += f'{name}: {getattr(self, value)}\n'
+
+        return response
 
 
 class Antutu7:
@@ -117,6 +153,10 @@ class Smartphone:
         smartphone = cls(date, name, chip)
         return smartphone
 
+    def __str__(self):
+        return (f'Smartphone {self.name} on {self.chip} with '
+                f'{self.battery_capacity} tested on {self.date}')
+
 
 def prepare_data():
     raw_data = csv.reader(open('sources_for_charts/GeekBench4.csv'))
@@ -139,7 +179,7 @@ def main():
     smartphones = Smartphones()
     smartphones.from_smartphone_bench_excel_book()
     for smartphone in smartphones.all_smartphones:
-        print(smartphone.geek_bench4.total_score)
+        print(smartphone.geek_bench4)
 
 
 if __name__ == '__main__':
