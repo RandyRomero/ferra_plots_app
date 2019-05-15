@@ -1,4 +1,3 @@
-import csv
 from datetime import datetime
 import re
 from typing import Optional, List, Tuple
@@ -18,8 +17,10 @@ class Smartphones:
         return wb[sheet_name]
 
     def _from_geekbench4_table(self):
+
+        # where my table with results of smartphones begins
         table_start_row = 12
-        the_last_row= 1048576
+        the_last_row = 1048576  # the last row in excel table
         sheet = self.open_sheet('GeekBench 4')
         i = 0
         for row in range(table_start_row, the_last_row, 1):
@@ -59,29 +60,27 @@ class Benchmark:
 
     def __init__(self, smartphone):
         self.smartphone: Smartphone = smartphone
-        self.list_of_values: List = self.make_list_of_values()
 
-    def make_list_of_values(self):
-        list_of_values = []
-        for attr in dir(self):
-            if 'score' in attr:
-                list_of_values.append(attr)
-
-        return list_of_values
+    def make_list_of_bench_results(self):
+        return [getattr(self, attr) for attr in dir(self) if 'score' in attr]
 
     def __str__(self):
+        list_of_score_attributes = self.make_list_of_bench_results()
         response = (f'Smartphone {self.smartphone.name}, '
                     f'results in {__class__.name}:\n')
         response += f'Date: {self.smartphone.date}\n'
 
-        for name, value in zip(GeekBench4.subtests, self.list_of_values):
-            response += f'{name}: {getattr(self, value)}\n'
+        for name, value in zip(GeekBench4.subtests, list_of_score_attributes):
+            response += f'{name}: {value}\n'
+
+        return response
 
 
 class GeekBench4(Benchmark):
 
     name: str = 'GeekBench 4'
-    subtests: Tuple[str] = ('Single-Core Score', 'Multi-Core Score', 'Total Score')
+    subtests: Tuple[str] = ('Single-Core Score', 'Multi-Core Score',
+                            'Total Score')
 
     def __init__(self, smartphone, all_cores_score, one_cores_score):
         super().__init__(smartphone)
@@ -89,23 +88,15 @@ class GeekBench4(Benchmark):
         self.multi_core_score: int = all_cores_score
         self.single_core_score: int = one_cores_score
         self.total_score: int = all_cores_score + one_cores_score
-        self.list_of_values: List[str] = self.make_list_of_values()
-
-    def __str__(self):
-        response = (f'Smartphone {self.smartphone.name}, '
-                    f'results in {GeekBench4.name}:\n')
-        response += f'Date: {self.smartphone.date}\n'
-
-        for name, value in zip(GeekBench4.subtests, self.list_of_values):
-            response += f'{name}: {getattr(self, value)}\n'
-
-        return response
 
 
-class Antutu7:
+class Antutu7(Benchmark):
+
+    name: str = 'AnTuTu Benchmark 7'
+    subtests: Tuple[str] = ('Total Score',)
 
     def __init__(self, smartphone, score):
-        self.smartphone: Smartphone = smartphone
+        super().__init__(smartphone)
         self.score = score
 
 
@@ -159,18 +150,22 @@ class Smartphone:
 
 
 def prepare_data():
-    raw_data = csv.reader(open('sources_for_charts/GeekBench4.csv'))
-    smartphones = [Smartphone.from_list(s) for s in raw_data]
-    smartphones.sort(key=lambda x: x.total_score)
+    smartphones = Smartphones()
+    smartphones.from_smartphone_bench_excel_book()
+    smartphones = sorted(smartphones.all_smartphones,
+                         key=lambda x: x.geek_bench4.total_score)
 
     y_axis_names = []
     x_axis_values = []
     x_axis_values2 = []
 
-    for smartphone in smartphones:
-        y_axis_names.append(f'{smartphone.name} ({smartphone.chip})')
-        x_axis_values.append(smartphone.all_cores_score)
-        x_axis_values2.append(smartphone.one_cores_score)
+    for i, smartphone in enumerate(smartphones):
+        # return name and chip of a smartphone with it index according to
+        # its performance in GeekBench 4
+        y_axis_names.append(f'{len(smartphones) - i}. {smartphone.name} '
+                            f'({smartphone.chip})')
+        x_axis_values.append(smartphone.geek_bench4.multi_core_score)
+        x_axis_values2.append(smartphone.geek_bench4.single_core_score)
 
     return y_axis_names, x_axis_values, x_axis_values2
 
@@ -178,8 +173,6 @@ def prepare_data():
 def main():
     smartphones = Smartphones()
     smartphones.from_smartphone_bench_excel_book()
-    for smartphone in smartphones.all_smartphones:
-        print(smartphone.geek_bench4)
 
 
 if __name__ == '__main__':
