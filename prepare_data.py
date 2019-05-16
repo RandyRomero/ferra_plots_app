@@ -104,12 +104,53 @@ class Smartphones:
                 return
 
     def _from_battery_test_table(self):
-        pass
+        sheet = self.open_sheet('battery_test')
+        for row in range(4, the_last_row, 1):
+            if sheet.cell(row=row, column=34).value:
+                raw_name = sheet.cell(row=row, column=34).value
+                name, battery_capacity = self._split_name(raw_name)
+                read_score = sheet.cell(row=row, column=35).value
+                movie_score = sheet.cell(row=row, column=36).value
+                game_score = sheet.cell(row=row, column=37).value
+
+                # if a smartphone with this name already exists - add to it
+                # result of the benchmark
+                smartphones = self.all_smartphones.keys()
+                if name in smartphones:
+                    smartphone = self.all_smartphones[name]
+                    smartphone.battery_capacity = battery_capacity
+                    battery_test = BatteryTest(smartphone, read_score,
+                                               movie_score, game_score)
+                    smartphone.battery_test = battery_test
+
+                    print(f'{name} UPDATED with battery test results')
+
+                # if a name of the smartphone doesn't already exist - create
+                # a new smartphone object and add to it its result from
+                # a benchmark
+                else:
+                    print(f'ADD {name} from battery test sheet')
+                    raw_date = sheet.cell(row=row, column=33).value
+                    date = raw_date.date() if raw_date else None
+                    smartphone = Smartphone(date, name, battery_capacity)
+                    battery_test = BatteryTest(smartphone, read_score,
+                                               movie_score, game_score)
+                    smartphone.battery_test = battery_test
+                    self.all_smartphones[name] = smartphone
+
+            else:
+                print(f'\nDone working on battery test sheet\n')
+                return
 
     def from_smartphone_bench_excel_book(self):
+        """
+        Making a list of smartphones by reading Excel sheets with certain data
+        :return: None
+        """
         self._from_geekbench4_table()
         self._from_sling_shot_and_antutu_tables('sling shot')
         self._from_sling_shot_and_antutu_tables('antutu7')
+        self._from_battery_test_table()
 
 
 class Benchmark:
@@ -175,14 +216,18 @@ class SlingShotExtreme:
 class BatteryTest:
     def __init__(self, smartphone, movie_score, read_score, game_score):
         self.smartphone: Smartphone = smartphone
-        self.movie_score = movie_score
         self.read_score = read_score
+        self.movie_score = movie_score
         self.game_score = game_score
         self.total_score = movie_score + read_score + game_score
 
 
 class Smartphone:
-    def __init__(self, date: datetime, name, chip=None, battery_capacity=None,
+    def __init__(self,
+                 date: datetime,
+                 name: str,
+                 chip: Optional[str] = None,
+                 battery_capacity: int = None,
                  geek_bench4: Optional[GeekBench4] = None,
                  sling_shot_extreme: Optional[SlingShotExtreme] = None,
                  antutu7: Optional[Antutu7] = None,
