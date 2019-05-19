@@ -36,12 +36,12 @@ class GeekBench4(Benchmark):
     subtests: Tuple[str] = ('Single-Core Score', 'Multi-Core Score',
                             'Total Score')
 
-    def __init__(self, smartphone, all_cores_score, one_cores_score):
+    def __init__(self, smartphone, multi_core_score, single_core_score):
         super().__init__(smartphone)
 
-        self.multi_core_score: int = all_cores_score
-        self.single_core_score: int = one_cores_score
-        self.total_score: int = all_cores_score + one_cores_score
+        self.multi_core_score: int = multi_core_score
+        self.single_core_score: int = single_core_score
+        self.total_score: int = multi_core_score + single_core_score
 
 
 class Antutu7(Benchmark):
@@ -81,7 +81,7 @@ class Smartphones:
         self.all_smartphones: Dict[str, Smartphone] = {}
 
     @staticmethod
-    def open_sheet(sheet_name):
+    def _open_sheet(sheet_name):
         wb = openpyxl.load_workbook(path_to_excel_workbook)
         return wb[sheet_name]
 
@@ -113,21 +113,38 @@ class Smartphones:
                         self.bench_attr,
                         self.chip_or_capacity)
 
-        geekbench4_trs = TableReadingSettings('GeekBench 4', 12, 32, 2,
-                                              GeekBench4,
-                                              'geek_bench4', 'chip')
+        geekbench4_trs = TableReadingSettings(sheet_name='GeekBench 4',
+                                              table_start_row=12,
+                                              column_with_name=32,
+                                              columns_after_name=2,
+                                              bench_class=GeekBench4,
+                                              bench_attr='geek_bench4',
+                                              chip_or_capacity='chip')
 
         sling_shot_extreme_trs = TableReadingSettings(
-            '3DMark Sling Shot Extreme',
-            5, 29, 1, SlingShotExtreme,
-            'sling_shot_extreme', 'chip')
+            sheet_name='3DMark Sling Shot Extreme',
+            table_start_row=5,
+            column_with_name=29,
+            columns_after_name=1,
+            bench_class=SlingShotExtreme,
+            bench_attr='sling_shot_extreme',
+            chip_or_capacity='chip')
 
-        antutu7_trs = TableReadingSettings('Antutu Benchmark 7', 3, 29, 1,
-                                           Antutu7,
-                                           'antutu7', 'chip')
+        antutu7_trs = TableReadingSettings(sheet_name='Antutu Benchmark 7',
+                                           table_start_row=3,
+                                           column_with_name=29,
+                                           columns_after_name=1,
+                                           bench_class=Antutu7,
+                                           bench_attr='antutu7',
+                                           chip_or_capacity='chip')
 
-        battery_test_trs = TableReadingSettings('battery_test', 4, 34, 3,
-                                                BatteryTest, 'battery_test',
+        battery_test_trs = TableReadingSettings(sheet_name='battery_test',
+                                                table_start_row=4,
+                                                column_with_name=34,
+                                                columns_after_name=3,
+                                                bench_class=BatteryTest,
+                                                bench_attr='battery_test',
+                                                chip_or_capacity=
                                                 'battery_capacity')
 
         trs = {'geek_bench4': geekbench4_trs,
@@ -145,7 +162,7 @@ class Smartphones:
          chip_or_capacity = table_reading_settings.return_variables()
 
         # where my table with results of smartphones begins
-        sheet = self.open_sheet(sheet_name)
+        sheet = self._open_sheet(sheet_name)
         for row in range(table_start_row, the_last_row, 1):
             raw_name = sheet.cell(row=row, column=column_with_name).value
 
@@ -162,7 +179,6 @@ class Smartphones:
                 smartphone = Smartphone(name)
                 self.all_smartphones[name] = smartphone
                 print(f'ADD {name} from {sheet_name}')
-
             else:
                 smartphone = self.all_smartphones[name]
                 print(f'UPDATE {name} from {sheet_name}')
