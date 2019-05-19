@@ -16,9 +16,6 @@ class Benchmark:
     def __init__(self, smartphone):
         self.smartphone: Smartphone = smartphone
 
-    # def make_list_of_bench_results(self):
-    #     return [getattr(self, attr) for attr in dir(self) if 'score' in attr]
-
     def __str__(self):
         score_attrs = [getattr(self, attr) for attr in dir(self)
                        if 'score' in attr]
@@ -199,26 +196,16 @@ class Smartphones:
             self._from_benchmark_table(trs[test])
 
 
-# todo make it to be a dataclass
+@dataclass
 class Smartphone:
-    def __init__(self,
-                 name: str,
-                 date: Optional[datetime] = None,
-                 chip: Optional[str] = None,
-                 battery_capacity: Optional[str] = None,
-                 geek_bench4: Optional[GeekBench4] = None,
-                 sling_shot_extreme: Optional[SlingShotExtreme] = None,
-                 antutu7: Optional[Antutu7] = None,
-                 battery_test: Optional[BatteryTest] = None):
-
-        self.name = name
-        self.date = date
-        self.chip = chip
-        self.battery_capacity = battery_capacity
-        self.geek_bench4 = geek_bench4
-        self.sling_shot_extreme = sling_shot_extreme
-        self.antutu_7 = antutu7
-        self.battery_test = battery_test
+    name: str
+    date: Optional[datetime] = None
+    chip: Optional[str] = None
+    battery_capacity: Optional[str] = None
+    geek_bench4: Optional[GeekBench4] = None
+    sling_shot_extreme: Optional[SlingShotExtreme] = None
+    antutu7: Optional[Antutu7] = None
+    battery_test: Optional[BatteryTest] = None
 
     def __str__(self):
         return (f'Smartphone {self.name} on {self.chip} with '
