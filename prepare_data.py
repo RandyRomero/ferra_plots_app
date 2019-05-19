@@ -1,156 +1,11 @@
 from datetime import datetime
 import re
-from typing import Optional, Dict, Tuple
+from dataclasses import dataclass
+from typing import Optional, Dict, Tuple, Type
 
 import openpyxl
 
 from config import path_to_excel_workbook, the_last_row
-
-
-class Smartphones:
-    def __init__(self):
-        self.all_smartphones: Dict[str, Smartphone] = {}
-
-    @staticmethod
-    def open_sheet(sheet_name):
-        wb = openpyxl.load_workbook(path_to_excel_workbook)
-        return wb[sheet_name]
-
-    @staticmethod
-    def _split_name(raw_name):
-        regex = re.compile(r'^(.*)\((.*)\)')
-        matches = re.search(regex, raw_name).groups()
-        name, attr = matches[0].strip(), matches[1].strip()
-        return name, attr
-
-    def _from_geekbench4_table(self):
-
-        # where my table with results of smartphones begins
-        table_start_row = 12
-        sheet = self.open_sheet('GeekBench 4')
-        i = 0
-        for row in range(table_start_row, the_last_row, 1):
-            if sheet.cell(row=row, column=32).value:
-                raw_date = sheet.cell(row=row, column=31).value
-                date = raw_date.date() if raw_date else None
-                raw_name = sheet.cell(row=row, column=33).value
-                all_cpu_scores = sheet.cell(row=row, column=34).value
-                one_cpu_score = sheet.cell(row=row, column=35).value
-                # i += 1
-                # print(f'{i}. {date}, {raw_name}, {all_cpu_scores}, '
-                #       f'{one_cpu_score}.')
-
-                name, chip = self._split_name(raw_name)
-                smartphone = Smartphone(date, name, chip)
-                geek_bench4 = GeekBench4(smartphone, all_cpu_scores,
-                                         one_cpu_score)
-                smartphone.geek_bench4 = geek_bench4
-                self.all_smartphones[smartphone.name] = smartphone
-                print(f'ADD {name} from GeekBench 4')
-            else:
-                print('\nDone working on GeekBench 4 table\n')
-                return
-
-    def _from_sling_shot_and_antutu_tables(self, test_name):
-
-        # different setting for different benchmarks with just one score
-        if test_name == 'sling shot':
-            sheet_name = '3DMark Sling Shot Extreme'
-            table_start_row = 5
-            bench_class = SlingShotExtreme
-            attr = 'sling_shot_extreme'
-
-        elif test_name == 'antutu7':
-            sheet_name = 'Antutu Benchmark 7'
-            table_start_row = 3
-            bench_class = Antutu7
-            attr = 'antutu7'
-
-        else:
-            print('ERROR: wrong name of the test')
-            return
-
-        sheet = self.open_sheet(sheet_name)
-        for row in range(table_start_row, the_last_row, 1):
-
-            # if a cell with a smartphone name is not empty
-            if sheet.cell(row=row, column=29).value:
-                raw_name = sheet.cell(row=row, column=29).value
-                name, chip = self._split_name(raw_name)
-                score = sheet.cell(row=row, column=30)
-
-                # if a smartphone with this name already exists - add to it
-                # result of the benchmark
-                if name in self.all_smartphones.keys():
-                    smartphone = self.all_smartphones[name]
-                    bench = bench_class(smartphone, score)
-                    setattr(smartphone, attr, bench)
-                    print(f'{name} UPDATED with {sheet_name} result')
-
-                # if a name of the smartphone doesn't already exist - create
-                # a new smartphone object and add to it its result from
-                # a benchmark
-                else:
-                    print(f'ADD {name} from {sheet_name}')
-                    raw_date = sheet.cell(row=row, column=28).value
-                    date = raw_date.date() if raw_date else None
-                    smartphone = Smartphone(date, name, chip)
-                    bench = bench_class(smartphone, score)
-                    setattr(smartphone, attr, bench)
-                    self.all_smartphones[name] = smartphone
-
-            else:
-                print(f'\nDone working on {sheet_name}\n')
-                return
-
-    def _from_battery_test_table(self):
-        sheet = self.open_sheet('battery_test')
-        for row in range(4, the_last_row, 1):
-            if sheet.cell(row=row, column=34).value:
-                raw_name = sheet.cell(row=row, column=34).value
-                name, battery_capacity = self._split_name(raw_name)
-                read_score = sheet.cell(row=row, column=35).value
-                movie_score = sheet.cell(row=row, column=36).value
-                game_score = sheet.cell(row=row, column=37).value
-
-                # if a smartphone with this name already exists - add to it
-                # result of the benchmark
-                smartphones = self.all_smartphones.keys()
-                if name in smartphones:
-                    smartphone = self.all_smartphones[name]
-                    smartphone.battery_capacity = battery_capacity
-                    battery_test = BatteryTest(smartphone, read_score,
-                                               movie_score, game_score)
-                    smartphone.battery_test = battery_test
-
-                    print(f'{name} UPDATED with battery test results')
-
-                # if a name of the smartphone doesn't already exist - create
-                # a new smartphone object and add to it its result from
-                # a benchmark
-                else:
-                    print(f'ADD {name} from battery test sheet')
-                    raw_date = sheet.cell(row=row, column=33).value
-                    date = raw_date.date() if raw_date else None
-                    smartphone = Smartphone(date, name, battery_capacity)
-                    battery_test = BatteryTest(smartphone, read_score,
-                                               movie_score, game_score)
-                    smartphone.battery_test = battery_test
-                    self.all_smartphones[name] = smartphone
-
-            else:
-                print(f'\nDone working on battery test sheet\n')
-                return
-
-    def from_smartphone_bench_excel_book(self):
-        """
-        Making a list of smartphones by reading Excel sheets with certain data
-        :return: None
-        """
-        self._from_geekbench4_table()
-        self._from_sling_shot_and_antutu_tables('sling shot')
-        self._from_sling_shot_and_antutu_tables('antutu7')
-        self._from_battery_test_table()
 
 
 class Benchmark:
@@ -161,16 +16,18 @@ class Benchmark:
     def __init__(self, smartphone):
         self.smartphone: Smartphone = smartphone
 
-    def make_list_of_bench_results(self):
-        return [getattr(self, attr) for attr in dir(self) if 'score' in attr]
+    # def make_list_of_bench_results(self):
+    #     return [getattr(self, attr) for attr in dir(self) if 'score' in attr]
 
     def __str__(self):
-        list_of_score_attributes = self.make_list_of_bench_results()
+        score_attrs = [getattr(self, attr) for attr in dir(self)
+                       if 'score' in attr]
+
         response = (f'Smartphone {self.smartphone.name}, '
                     f'results in {__class__.name}:\n')
         response += f'Date: {self.smartphone.date}\n'
 
-        for name, value in zip(GeekBench4.subtests, list_of_score_attributes):
+        for name, value in zip(GeekBench4.subtests, score_attrs):
             response += f'{name}: {value}\n'
 
         return response
@@ -200,7 +57,7 @@ class Antutu7(Benchmark):
         self.score = score
 
 
-class SlingShotExtreme:
+class SlingShotExtreme(Benchmark):
     """
     3DMark Sling Shot Extreme benchmark
     """
@@ -209,34 +66,155 @@ class SlingShotExtreme:
     subtests: Tuple[str] = ('Score',)
 
     def __init__(self, smartphone, score):
-        self.smartphone: Smartphone = smartphone
+        super().__init__(smartphone)
         self.score = score
 
 
-class BatteryTest:
+class BatteryTest(Benchmark):
     def __init__(self, smartphone, movie_score, read_score, game_score):
-        self.smartphone: Smartphone = smartphone
+        super().__init__(smartphone)
         self.read_score = read_score
         self.movie_score = movie_score
         self.game_score = game_score
         self.total_score = movie_score + read_score + game_score
 
 
+class Smartphones:
+    def __init__(self):
+        self.all_smartphones: Dict[str, Smartphone] = {}
+
+    @staticmethod
+    def open_sheet(sheet_name):
+        wb = openpyxl.load_workbook(path_to_excel_workbook)
+        return wb[sheet_name]
+
+    @staticmethod
+    def _split_name(raw_name):
+        regex = re.compile(r'^(.*)\((.*)\)')
+        matches = re.search(regex, raw_name).groups()
+        name, attr = matches[0].strip(), matches[1].strip()
+        return name, attr
+
+    def _make_table_reading_settings(self):
+
+        @dataclass
+        class TableReadingSettings:
+            sheet_name: str
+            table_start_row: int
+            column_with_name: int
+            columns_after_name: int
+            bench_class: Type[Benchmark]
+            bench_attr: str
+            chip_or_capacity: str
+
+            def return_variables(self):
+                return (self.sheet_name,
+                        self.table_start_row,
+                        self.column_with_name,
+                        self.columns_after_name,
+                        self.bench_class,
+                        self.bench_attr,
+                        self.chip_or_capacity)
+
+        geekbench4_trs = TableReadingSettings('GeekBench 4', 12, 32, 2,
+                                              GeekBench4,
+                                              'geek_bench4', 'chip')
+
+        sling_shot_extreme_trs = TableReadingSettings(
+            '3DMark Sling Shot Extreme',
+            5, 29, 1, SlingShotExtreme,
+            'sling_shot_extreme', 'chip')
+
+        antutu7_trs = TableReadingSettings('Antutu Benchmark 7', 3, 29, 1,
+                                           Antutu7,
+                                           'antutu7', 'chip')
+
+        battery_test_trs = TableReadingSettings('battery_test', 4, 34, 3,
+                                                BatteryTest, 'battery_test',
+                                                'battery_capacity')
+
+        trs = {'geek_bench4': geekbench4_trs,
+               'sling_shot': sling_shot_extreme_trs,
+               'antutu7': antutu7_trs,
+               'battery_test': battery_test_trs}
+
+        return trs
+
+    def _from_benchmark_table(self, table_reading_settings):
+
+        # Get different setting for different benchmarks
+        sheet_name, table_start_row, column_with_name, columns_after_name, \
+         bench_class, bench_attr, \
+         chip_or_capacity = table_reading_settings.return_variables()
+
+        # where my table with results of smartphones begins
+        sheet = self.open_sheet(sheet_name)
+        for row in range(table_start_row, the_last_row, 1):
+            raw_name = sheet.cell(row=row, column=column_with_name).value
+
+            # means that script has reached the end of the list with results
+            if not raw_name:
+                print('\nDone working on GeekBench 4 table\n')
+                return
+
+            # split name from an additional characteristic in parentheses
+            name, characteristic = self._split_name(raw_name)
+
+            # get a smartphone object from the dict or create new one
+            if name not in self.all_smartphones.keys():
+                smartphone = Smartphone(name)
+                self.all_smartphones[name] = smartphone
+                print(f'ADD {name} from {sheet_name}')
+
+            else:
+                smartphone = self.all_smartphones[name]
+                print(f'UPDATE {name} from {sheet_name}')
+
+            # set chip or battery capacity value to a smartphone object
+            setattr(smartphone, chip_or_capacity, characteristic)
+
+            # set date if it hasn't been done yet and if it is possible
+            if not smartphone.date:
+                raw_date = sheet.cell(row=row,
+                                      column=column_with_name - 1).value
+                if raw_date:
+                    smartphone.date = raw_date.date()
+
+            # gather results of a benchmark
+            results = []
+            for i in range(1, columns_after_name + 1, 1):
+                result = sheet.cell(row=row, column=column_with_name + i).value
+                results.append(result)
+
+            bench = bench_class(smartphone, *results)
+            setattr(smartphone, bench_attr, bench)
+
+    def read_from_excel_book(self):
+        """
+        Making a list of smartphones by reading Excel sheets with certain data
+        :return: None
+        """
+        trs = self._make_table_reading_settings()
+        for test in ('geek_bench4', 'sling_shot', 'antutu7', 'battery_test'):
+            self._from_benchmark_table(trs[test])
+
+
+# todo make it to be a dataclass
 class Smartphone:
     def __init__(self,
-                 date: datetime,
                  name: str,
+                 date: Optional[datetime] = None,
                  chip: Optional[str] = None,
-                 battery_capacity: int = None,
+                 battery_capacity: Optional[str] = None,
                  geek_bench4: Optional[GeekBench4] = None,
                  sling_shot_extreme: Optional[SlingShotExtreme] = None,
                  antutu7: Optional[Antutu7] = None,
                  battery_test: Optional[BatteryTest] = None):
 
+        self.name = name
         self.date = date
-        self.name: str = name
-        self.chip: str = chip
-        self.battery_capacity: int = battery_capacity
+        self.chip = chip
+        self.battery_capacity = battery_capacity
         self.geek_bench4 = geek_bench4
         self.sling_shot_extreme = sling_shot_extreme
         self.antutu_7 = antutu7
@@ -249,7 +227,7 @@ class Smartphone:
 
 def prepare_data():
     smartphones = Smartphones()
-    smartphones.from_smartphone_bench_excel_book()
+    smartphones.read_from_excel_book()
     smartphones_list = [x for x in smartphones.all_smartphones.values()
                         if x.geek_bench4]
     smartphones = sorted(smartphones_list,
@@ -272,7 +250,7 @@ def prepare_data():
 
 def main():
     smartphones = Smartphones()
-    smartphones.from_smartphone_bench_excel_book()
+    smartphones.read_from_excel_book()
 
 
 if __name__ == '__main__':
