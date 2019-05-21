@@ -4,8 +4,9 @@ from dataclasses import dataclass
 from typing import Optional, Dict, Tuple, Type
 
 import openpyxl
+from openpyxl import Workbook
 
-from config import path_to_excel_workbook, the_last_row
+from config import path_to_excel_workbook, the_last_row, list_of_benchs
 
 
 class Benchmark:
@@ -16,15 +17,17 @@ class Benchmark:
     def __init__(self, smartphone):
         self.smartphone: Smartphone = smartphone
 
+    def _get_bench_results(self):
+        return [v for (k, v) in self.__dict__.items() if 'score' in k]
+
     def __str__(self):
-        score_attrs = [getattr(self, attr) for attr in dir(self)
-                       if 'score' in attr]
+        score_attrs = self._get_bench_results()
 
         response = (f'Smartphone {self.smartphone.name}, '
                     f'results in {__class__.name}:\n')
         response += f'Date: {self.smartphone.date}\n'
 
-        for name, value in zip(GeekBench4.subtests, score_attrs):
+        for name, value in zip(__class__.subtests, score_attrs):
             response += f'{name}: {value}\n'
 
         return response
@@ -36,22 +39,14 @@ class GeekBench4(Benchmark):
     subtests: Tuple[str] = ('Single-Core Score', 'Multi-Core Score',
                             'Total Score')
 
-    def __init__(self, smartphone, multi_core_score, single_core_score):
+    def __init__(self, smartphone: 'Smartphone', multi_core_score: int = 0,
+                 single_core_score: int = 0):
+
         super().__init__(smartphone)
 
-        self.multi_core_score: int = multi_core_score
-        self.single_core_score: int = single_core_score
+        self.multi_core_score = multi_core_score
+        self.single_core_score = single_core_score
         self.total_score: int = multi_core_score + single_core_score
-
-
-class Antutu7(Benchmark):
-
-    name: str = 'AnTuTu Benchmark 7'
-    subtests: Tuple[str] = ('Score',)
-
-    def __init__(self, smartphone, score):
-        super().__init__(smartphone)
-        self.score = score
 
 
 class SlingShotExtreme(Benchmark):
@@ -62,18 +57,33 @@ class SlingShotExtreme(Benchmark):
     name: str = '3DMark Sling Shot Extreme'
     subtests: Tuple[str] = ('Score',)
 
-    def __init__(self, smartphone, score):
+    def __init__(self, smartphone: 'Smartphone', score: int = 0):
+        super().__init__(smartphone)
+        self.score = score
+
+
+class Antutu7(Benchmark):
+
+    name: str = 'AnTuTu Benchmark 7'
+    subtests: Tuple[str] = ('Score',)
+
+    def __init__(self, smartphone: 'Smartphone', score: int = 0):
         super().__init__(smartphone)
         self.score = score
 
 
 class BatteryTest(Benchmark):
-    def __init__(self, smartphone, movie_score, read_score, game_score):
+    name: str = 'Battery Test'
+    subtests: Tuple[str] = ('Read score', 'Movie score', 'Game score',
+                            'Total score')
+
+    def __init__(self, smartphone: 'Smartphone', movie_score: int = 0,
+                 read_score: int = 0, game_score: int = 0):
         super().__init__(smartphone)
         self.read_score = read_score
         self.movie_score = movie_score
         self.game_score = game_score
-        self.total_score = movie_score + read_score + game_score
+        self.total_score: int = movie_score + read_score + game_score
 
 
 class Smartphones:
@@ -211,17 +221,53 @@ class Smartphones:
         for test in ('geek_bench4', 'sling_shot', 'antutu7', 'battery_test'):
             self._from_benchmark_table(trs[test])
 
+    def write_to_excel(self):
+        smartphones = list(self.all_smartphones.values())
+        wb = Workbook()
+        dest_filename = 'smartphones.xlsx'
+        ws1 = wb.active
+        ws1.title = 'smartphones'
 
-@dataclass
+        heading = ["Date", "Smartphone", "Chip", "Battery"]
+
+        benchmark_subclasses = Benchmark.__subclasses__()
+        for bench in benchmark_subclasses:
+            name = getattr(bench, 'name')
+            for subtest in getattr(bench, 'subtests'):
+                heading.append(f'{name}: {subtest} ')
+
+        for column, value in zip(range(1, len(heading)+1, 1), heading):
+            ws1.cell(row=1, column=column, value=value)
+
+        smartphone_row = []
+        for i, s in enumerate(smartphones):
+            smartphone_row.extend([s.date, s.name, s.chip, s.battery_capacity])
+
+            for bench_name in list_of_benchs:
+                bench = getattr(s, bench_name)
+                for k, v in bench.__dict__.items():
+                    if 'score' in k:
+                        smartphone_row.append(v)
+
+            column_len = (range(1, len(smartphone_row) + 1, 1))
+            for column, value in zip(column_len, smartphone_row):
+                ws1.cell(row=i+2, column=column, value=value)
+            smartphone_row[:] = []
+
+        wb.save(filename=dest_filename)
+        print(f'Wrote down data to {dest_filename}')
+
+
 class Smartphone:
-    name: str
-    date: Optional[datetime] = None
-    chip: Optional[str] = None
-    battery_capacity: Optional[str] = None
-    geek_bench4: Optional[GeekBench4] = None
-    sling_shot_extreme: Optional[SlingShotExtreme] = None
-    antutu7: Optional[Antutu7] = None
-    battery_test: Optional[BatteryTest] = None
+    def __init__(self, name: str, date: Optional[datetime] = None):
+        self.name = name
+        self.date = date
+        self.chip: Optional[str] = None
+        self.battery_capacity: Optional[str] = None
+        self.geek_bench4: GeekBench4 = GeekBench4(self)
+        self.sling_shot_extreme: SlingShotExtreme = SlingShotExtreme(self)
+        self.antutu7: Antutu7 = Antutu7(self)
+        self.battery_test = BatteryTest(self)
 
     def __str__(self):
         return (f'Smartphone {self.name} on {self.chip} with '
@@ -254,6 +300,7 @@ def prepare_data():
 def main():
     smartphones = Smartphones()
     smartphones.read_from_excel_book()
+    smartphones.write_to_excel()
 
 
 if __name__ == '__main__':
