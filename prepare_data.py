@@ -1,32 +1,51 @@
 from datetime import datetime
 import re
 from dataclasses import dataclass
-from typing import Optional, Dict, Tuple, Type
+from typing import Optional, Dict, Tuple, Type, List
 
 import openpyxl
 from openpyxl import Workbook
+from openpyxl.worksheet.worksheet import Worksheet
 
 from config import path_to_excel_workbook, the_last_row, list_of_benchs
 
 
 class Benchmark:
 
+    """
+    Parent class for any benchmark - to gather results of a smarphone in a
+    benchmark
+    """
+
     name: str = 'Benchmark name here'
+
+    # There would be strings with user-friendly names of subtests for string
+    # representation of an instance of the class
     subtests: Tuple[str] = ()
 
-    def __init__(self, smartphone):
-        self.smartphone: Smartphone = smartphone
+    def __init__(self, smartphone: 'Smartphone') -> None:
+        self.smartphone = smartphone
 
-    def _get_bench_results(self):
+    def _get_bench_results(self) -> List[int]:
+        """
+        Returns a list of integers that represent results of a smartphone in
+        subtests of a given benchmark
+        """
         return [v for (k, v) in self.__dict__.items() if 'score' in k]
 
-    def __str__(self):
+    def __str__(self) -> str:
+        """
+        Returns a string that represents vital information about an instance
+        of the class
+        """
         score_attrs = self._get_bench_results()
 
         response = (f'Smartphone {self.smartphone.name}, '
                     f'results in {__class__.name}:\n')
         response += f'Date: {self.smartphone.date}\n'
 
+        # Concatenate a name of the subtest and the score of a smartphone in
+        # this subtest
         for name, value in zip(__class__.subtests, score_attrs):
             response += f'{name}: {value}\n'
 
@@ -35,12 +54,16 @@ class Benchmark:
 
 class GeekBench4(Benchmark):
 
+    """
+    Class that represents famous mobile GeekBench 4 benchmark
+    """
+
     name: str = 'GeekBench 4'
     subtests: Tuple[str] = ('Single-Core Score', 'Multi-Core Score',
                             'Total Score')
 
     def __init__(self, smartphone: 'Smartphone', multi_core_score: int = 0,
-                 single_core_score: int = 0):
+                 single_core_score: int = 0) -> None:
 
         super().__init__(smartphone)
 
@@ -51,28 +74,39 @@ class GeekBench4(Benchmark):
 
 class SlingShotExtreme(Benchmark):
     """
-    3DMark Sling Shot Extreme benchmark
+    Class that represents famous mobile 3DMark benchmark, specifically
+    Sling Shot Extreme subtest
     """
 
     name: str = '3DMark Sling Shot Extreme'
     subtests: Tuple[str] = ('Score',)
 
-    def __init__(self, smartphone: 'Smartphone', score: int = 0):
+    def __init__(self, smartphone: 'Smartphone', score: int = 0) -> None:
         super().__init__(smartphone)
         self.score = score
 
 
 class Antutu7(Benchmark):
 
+    """
+    Class that represents famous mobile Antutu 7 benchmark
+    """
+
     name: str = 'AnTuTu Benchmark 7'
     subtests: Tuple[str] = ('Score',)
 
-    def __init__(self, smartphone: 'Smartphone', score: int = 0):
+    def __init__(self, smartphone: 'Smartphone', score: int = 0) -> None:
         super().__init__(smartphone)
         self.score = score
 
 
 class BatteryTest(Benchmark):
+
+    """
+    Class that represents our own testing of a battery life
+    Score are minutes - how much each smarpthone lasted in each activity
+    """
+
     name: str = 'Battery Test'
     subtests: Tuple[str] = ('Read score', 'Movie score', 'Game score',
                             'Total score')
@@ -87,25 +121,59 @@ class BatteryTest(Benchmark):
 
 
 class Smartphones:
-    def __init__(self):
+
+    """
+    Special class to manage instances of a Smartphone class
+
+    It creates new Smarphone instances by reading particular Excel file,
+    read and fill in scores from benchmarks. Also it can write this data
+    to another Excel file - just to be sure it was read right
+    """
+    def __init__(self) -> None:
         self.all_smartphones: Dict[str, Smartphone] = {}
 
     @staticmethod
-    def _open_sheet(sheet_name):
+    def _open_sheet(sheet_name: str) -> Worksheet:
+        """
+        Open a sheet in Excel file with a given name
+        """
         wb = openpyxl.load_workbook(path_to_excel_workbook)
+        print(f'type(wb[sheet_name]): {type(wb[sheet_name])}')
         return wb[sheet_name]
 
     @staticmethod
-    def _split_name(raw_name):
+    def _split_name(raw_name: str) -> Tuple[str, str]:
+        """
+        Method that takes a string and splits its by a particular pattern
+
+        It takes a string like 'Nokia 1 (Snapdragon 450)' or 'Samsung Galaxy
+        Note 9 (4000 мАч)" and splits it into two strings - a smartphone name
+        and its processor or battery capacity
+
+        """
         regex = re.compile(r'^(.*)\((.*)\)')
         matches = re.search(regex, raw_name).groups()
         name, attr = matches[0].strip(), matches[1].strip()
+
         return name, attr
 
-    def _make_table_reading_settings(self):
+    @staticmethod
+    def _make_table_reading_settings() -> Dict[str, 'TableReadingSettings']:
+
+        """
+        Method to make different settings for reading different excel sheets
+        and tables with benchmark results
+
+        :return: a dictionary with objects of TableReadingSettings class
+        """
 
         @dataclass
         class TableReadingSettings:
+
+            """
+            Class to store settings for reading a specific table from
+            an Excel sheet
+            """
             sheet_name: str
             table_start_row: int
             column_with_name: int
@@ -113,15 +181,6 @@ class Smartphones:
             bench_class: Type[Benchmark]
             bench_attr: str
             chip_or_capacity: str
-
-            def return_variables(self):
-                return (self.sheet_name,
-                        self.table_start_row,
-                        self.column_with_name,
-                        self.columns_after_name,
-                        self.bench_class,
-                        self.bench_attr,
-                        self.chip_or_capacity)
 
         geekbench4_trs = TableReadingSettings(sheet_name='GeekBench 4',
                                               table_start_row=12,
@@ -164,21 +223,29 @@ class Smartphones:
 
         return trs
 
-    def _from_benchmark_table(self, table_reading_settings):
+    def _from_benchmark_table(self, trs: 'TableReadingSettings') -> None:
+
+        """
+        Function that read benchmark scores from different sheet of specific
+        Excel file
+
+        :param trs: instance of the TableReadingSettings class
+        """
 
         # Get different setting for different benchmarks
         sheet_name, table_start_row, column_with_name, columns_after_name, \
-         bench_class, bench_attr, \
-         chip_or_capacity = table_reading_settings.return_variables()
+        bench_class, bench_attr, chip_or_capacity = trs.__dict__.values()
 
         # where my table with results of smartphones begins
         sheet = self._open_sheet(sheet_name)
+
+        # read the table row by row to read results, make respective classes
         for row in range(table_start_row, the_last_row, 1):
             raw_name = sheet.cell(row=row, column=column_with_name).value
 
-            # means that script has reached the end of the list with results
+            # means that script has reached the end of the table with results
             if not raw_name:
-                print('\nDone working on GeekBench 4 table\n')
+                print(f'\nDone working on {bench_class.name} table\n')
                 return
 
             # split name from an additional characteristic in parentheses
@@ -203,7 +270,7 @@ class Smartphones:
                 if raw_date:
                     smartphone.date = raw_date.date()
 
-            # gather results of a benchmark
+            # gather results of a benchmark from a row in Excel
             results = []
             for i in range(1, columns_after_name + 1, 1):
                 result = sheet.cell(row=row, column=column_with_name + i).value
@@ -212,17 +279,24 @@ class Smartphones:
             bench = bench_class(smartphone, *results)
             setattr(smartphone, bench_attr, bench)
 
-    def read_from_excel_book(self):
+    def read_from_excel_book(self) -> None:
         """
-        Making a list of smartphones by reading Excel sheets with certain data
+        Read several Excel sheets one by one
         :return: None
         """
         trs = self._make_table_reading_settings()
         for test in ('geek_bench4', 'sling_shot', 'antutu7', 'battery_test'):
             self._from_benchmark_table(trs[test])
 
-    def write_to_excel(self):
+    def write_to_excel(self) -> None:
+
+        """
+        Save data about smartphones and their benchmark scores to Excel table
+        """
+
         smartphones = list(self.all_smartphones.values())
+
+        # Prepare workbook and a sheet
         wb = Workbook()
         dest_filename = 'smartphones.xlsx'
         ws1 = wb.active
@@ -230,25 +304,30 @@ class Smartphones:
 
         heading = ["Date", "Smartphone", "Chip", "Battery"]
 
+        # Supplement heading with names of the benchmarks and their subtests
         benchmark_subclasses = Benchmark.__subclasses__()
         for bench in benchmark_subclasses:
             name = getattr(bench, 'name')
             for subtest in getattr(bench, 'subtests'):
                 heading.append(f'{name}: {subtest} ')
 
+        # Write the heading to the Excel sheet
         for column, value in zip(range(1, len(heading)+1, 1), heading):
             ws1.cell(row=1, column=column, value=value)
 
+        # Make a row with the data about a smartphone
         smartphone_row = []
         for i, s in enumerate(smartphones):
             smartphone_row.extend([s.date, s.name, s.chip, s.battery_capacity])
 
+            # Get results of benchmarking a smartphone from its class
             for bench_name in list_of_benchs:
                 bench = getattr(s, bench_name)
                 for k, v in bench.__dict__.items():
                     if 'score' in k:
                         smartphone_row.append(v)
 
+            # Write results of benchmarking of a smartphone to the Excel sheet
             column_len = (range(1, len(smartphone_row) + 1, 1))
             for column, value in zip(column_len, smartphone_row):
                 ws1.cell(row=i+2, column=column, value=value)
@@ -259,7 +338,13 @@ class Smartphones:
 
 
 class Smartphone:
-    def __init__(self, name: str, date: Optional[datetime] = None):
+
+    """
+    Class that contains info about a smartphone: name, chip, battery capacity
+    and results in benchmarks
+    """
+
+    def __init__(self, name: str, date: Optional[datetime] = None) -> None:
         self.name = name
         self.date = date
         self.chip: Optional[str] = None
@@ -269,7 +354,7 @@ class Smartphone:
         self.antutu7: Antutu7 = Antutu7(self)
         self.battery_test = BatteryTest(self)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (f'Smartphone {self.name} on {self.chip} with '
                 f'{self.battery_capacity} tested on {self.date}')
 
