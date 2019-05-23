@@ -363,8 +363,11 @@ def prepare_data():
     smartphones = Smartphones()
     smartphones.read_from_excel_book()
     smartphones_list = [x for x in smartphones.all_smartphones.values()
-                        if x.geek_bench4]
-    smartphones = sorted(smartphones_list,
+                        if x.geek_bench4.total_score and x.date]
+
+    smartphones_list.sort(key=lambda x: x.date)
+
+    smartphones = sorted(smartphones_list[-30:],
                          key=lambda x: x.geek_bench4.total_score)
 
     y_axis_names = []
