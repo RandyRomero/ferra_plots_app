@@ -83,7 +83,7 @@ class SlingShotExtreme(Benchmark):
 
     def __init__(self, smartphone: 'Smartphone', score: int = 0) -> None:
         super().__init__(smartphone)
-        self.score = score
+        self.total_score = score
 
 
 class Antutu7(Benchmark):
@@ -97,7 +97,7 @@ class Antutu7(Benchmark):
 
     def __init__(self, smartphone: 'Smartphone', score: int = 0) -> None:
         super().__init__(smartphone)
-        self.score = score
+        self.total_score = score
 
 
 class BatteryTest(Benchmark):
@@ -359,30 +359,71 @@ class Smartphone:
                 f'{self.battery_capacity} tested on {self.date}')
 
 
-def prepare_data():
-    smartphones = Smartphones()
-    smartphones.read_from_excel_book()
+def prepare_data(bench, smartphones):
+
     smartphones_list = [x for x in smartphones.all_smartphones.values()
-                        if x.geek_bench4.total_score and x.date]
+                        if x.date and getattr(getattr(x, bench),
+                                              'total_score')]
 
     smartphones_list.sort(key=lambda x: x.date)
 
-    smartphones = sorted(smartphones_list[-30:],
-                         key=lambda x: x.geek_bench4.total_score)
+    smartphones = sorted(smartphones_list,
+                         key=lambda x: getattr(getattr(x, bench),
+                                               'total_score'))[-30:]
 
     y_axis_names = []
     x_axis_values = []
-    x_axis_values2 = []
+    data = []
 
-    for i, smartphone in enumerate(smartphones):
-        # return name and chip of a smartphone with it index according to
-        # its performance in GeekBench 4
-        y_axis_names.append(f'{len(smartphones) - i}. {smartphone.name} '
-                            f'({smartphone.chip})')
-        x_axis_values.append(smartphone.geek_bench4.multi_core_score)
-        x_axis_values2.append(smartphone.geek_bench4.single_core_score)
+    if bench == 'geek_bench4':
 
-    return y_axis_names, x_axis_values, x_axis_values2
+        x_axis_values2 = []
+
+        for i, s in enumerate(smartphones):
+            # return name and chip of a smartphone with it index
+            # according to its performance in GeekBench 4
+            y_axis_names.append(f'{len(smartphones) - i}. {s.name} ({s.chip})')
+
+            mc_score = getattr(getattr(s, bench), 'multi_core_score')
+            x_axis_values.append(mc_score)
+
+            sc_score = getattr(getattr(s, bench), 'single_core_score')
+            x_axis_values2.append(sc_score)
+
+        data.extend([y_axis_names, x_axis_values, x_axis_values2])
+
+    elif bench == 'sling_shot_extreme' or bench == 'antutu7':
+        for i, s in enumerate(smartphones):
+
+            y_axis_names.append(f'{len(smartphones) - i}. {s.name} '
+                                f'({s.chip})')
+
+            total_score = getattr(getattr(s, bench), 'total_score')
+            x_axis_values.append(total_score)
+
+        data.extend([y_axis_names, x_axis_values])
+
+    elif bench == 'battery_test':
+        x_axis_values2 = []
+        x_axis_values3 = []
+
+        for i, s in enumerate(smartphones):
+            y_axis_names.append(f'{len(smartphones) - i}. {s.name} '
+                                f'({s.battery_capacity})')
+
+            read_score = getattr(getattr(s, bench), 'read_score')
+            x_axis_values.append(read_score)
+
+            movie_score = getattr(getattr(s, bench), 'movie_score')
+            x_axis_values2.append(movie_score)
+
+            game_score = getattr(getattr(s, bench), 'game_score')
+            x_axis_values3.append(game_score)
+
+        data.extend([y_axis_names, x_axis_values, x_axis_values2,
+                     x_axis_values3])
+
+    return data
 
 
 def main():

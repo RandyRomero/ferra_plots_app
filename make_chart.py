@@ -1,4 +1,5 @@
 import os
+from pprint import pprint
 
 import plotly.graph_objs as go
 from plotly.offline import init_notebook_mode
@@ -6,6 +7,8 @@ import plotly.io as pio
 
 from config import path_to_orca
 from prepare_data import prepare_data
+from plot_settings import plot_setting as ps
+
 init_notebook_mode(connected=True)
 
 if not os.path.exists('images'):
@@ -15,61 +18,56 @@ if not os.path.exists('images'):
 
 pio.orca.config.executable = path_to_orca
 
-print('Start preparing data for a plot...')
-y_axis_names, x_axis_values, x_axis_values2 = prepare_data()
 
-print('Start making the plot...')
-length = len(y_axis_names)
+def make_chart(bench, smartphones):
+    print('Start preparing data for a plot...')
+    data = prepare_data(bench, smartphones)
 
-# orange
-default_bar_color1 = 'rgba(255, 133, 0, 1)'
-default_bar_color2 = 'rgba(255, 160, 57, 1)'
+    print('Start making the plot...')
+    y_axis_names = data[0]
+    length = len(y_axis_names)
 
-color1 = [default_bar_color1] * length
-color2 = [default_bar_color2] * length
+    traces = []
+    if len(data) == 4:
+        ps['default_bar_color'].rotate(1)
+        print(ps['default_bar_color'])
 
-# blue-ish
-color1[15] = 'rgba(7, 118, 160, 1)'
-color2[15] = 'rgba(43, 132, 166, 1)'
+    for i, x_axis in enumerate(data[1:]):
+        trace = go.Bar(
+            x=x_axis,
+            y=y_axis_names,
+            text=x_axis,
+            textfont={'color': ['#ffffff'] * length, 'size': [20] * length},
+            textposition='auto',
+            name=ps[bench]['traces_names'][i],
+            orientation='h',
+            marker=dict(
+                color=ps['default_bar_color'][i]
+            )
+        )
 
-trace1 = go.Bar(
-    x=x_axis_values,
-    y=y_axis_names,
-    text=x_axis_values,
-    textfont={'color': ['#ffffff'] * length, 'size': [20] * length},
-    textposition='auto',
-    name='Все ядра',
-    orientation='h',
-    marker=dict(
-        color=color1
-    )
-)
-trace2 = go.Bar(
-    y=y_axis_names,
-    x=x_axis_values2,
-    text=x_axis_values2,
-    textfont={'color': ['#ffffff'] * length, 'size': [20] * length},
-    textposition='auto',
-    name='Одно ядро',
-    orientation='h',
-    marker=dict(
-        color=color2
-    )
-)
+        traces.append(trace)
 
-data = [trace1, trace2]
-layout = go.Layout(title='Geekbench 4',
-                   titlefont={'size': 36},
-                   margin=dict(pad=15, l=500),
-                   barmode='stack',
-                   legend={'font': {'size': 20}, 'orientation': 'h'},
-                   xaxis=dict(tickfont=dict(size=20)),
-                   yaxis=dict(showticklabels=True,
-                              tickfont=dict(size=20)),)
+    layout = go.Layout(title=ps[bench]['title'],
+                       titlefont=ps['layout_settings']['titlefont'],
+                       margin=ps['layout_settings']['margin'],
+                       barmode='stack',
+                       legend=ps['layout_settings']['legend'],
+                       xaxis=dict(tickfont=ps['layout_settings']['tickfont']),
+                       yaxis=dict(tickfont=ps['layout_settings']['tickfont'],
+                                  showticklabels=True))
 
-fig = go.Figure(data=data, layout=layout)
+    fig = go.Figure(data=traces, layout=layout)
 
-print('Start rendering the plot...')
-# pio.write_image(fig, 'images/GeekBench.png', width=1366, height=(1366 * 2))
-pio.write_image(fig, 'images/GeekBench.png', width=1366, height=1366)
-print('Plot was saved as images/GeekBench.png')
+    print('Start rendering the plot...')
+    # pio.write_image(fig, 'images/GeekBench.png', width=1366, height=(1366 * 2))
+    pio.write_image(fig, f'images/{bench}.png', width=1366, height=1366)
+    print(f'Plot was saved as images/{bench}.png')
+
+
+    # color1 = [default_bar_color1] * length
+    # color2 = [default_bar_color2] * length
+    #
+    # # blue-ish
+    # color1[15] = 'rgba(7, 118, 160, 1)'
+    # color2[15] = 'rgba(43, 132, 166, 1)'
