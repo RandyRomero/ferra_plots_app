@@ -13,7 +13,6 @@ init_notebook_mode(connected=True)
 if not os.path.exists('images'):
     os.mkdir('images')
 
-# todo make it accept command line arguments
 
 pio.orca.config.executable = path_to_orca
 
@@ -31,10 +30,7 @@ def make_chart(bench, smartphones):
     # we have to change the order of colors in case there are more than two
     # colors needed
     if len(data) == 4:
-
         default_colors = default_colors[-1:] + default_colors[:-1]
-
-        print(ps['default_bar_color'])
 
     for i, x_axis in enumerate(data[1:]):
         trace = go.Bar(
@@ -62,7 +58,6 @@ def make_chart(bench, smartphones):
                                   showticklabels=True))
 
     fig = go.Figure(data=traces, layout=layout)
-
     print(f'Start rendering the {bench} plot...')
     pio.write_image(fig, f'images/{bench}.png', width=1366, height=1366)
     print(f'The plot was saved as images/{bench}.png')

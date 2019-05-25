@@ -411,14 +411,9 @@ def prepare_data(bench, smartphones):
             y_axis_names.append(f'{len(smartphones) - i}. {s.name} '
                                 f'({s.battery_capacity})')
 
-            read_score = getattr(getattr(s, bench), 'read_score')
-            x_axis_values.append(read_score)
-
-            movie_score = getattr(getattr(s, bench), 'movie_score')
-            x_axis_values2.append(movie_score)
-
-            game_score = getattr(getattr(s, bench), 'game_score')
-            x_axis_values3.append(game_score)
+            x_axis_values.append(getattr(getattr(s, bench), 'read_score'))
+            x_axis_values2.append(getattr(getattr(s, bench), 'movie_score'))
+            x_axis_values3.append(getattr(getattr(s, bench), 'game_score'))
 
         data.extend([y_axis_names, x_axis_values, x_axis_values2,
                      x_axis_values3])
