@@ -1,12 +1,10 @@
-from collections import deque
-
 plot_setting = {}
 
-default_bar_color = deque([
+default_bar_color = [
     'rgba(255, 133, 0, 1)',
     'rgba(255, 160, 57, 1)',
     'rgba(211, 110, 0, 1)'
-])
+]
 
 primary_gadget_color = ()
 secondary_gadget_color = ()
@@ -42,6 +40,3 @@ layout_settings = {'titlefont': {'size': 36},
                    }
 
 plot_setting['layout_settings'] = layout_settings
-
-# default_bar_color1 = 'rgba(255, 133, 0, 1)'
-# default_bar_color2 = 'rgba(255, 160, 57, 1)'

@@ -1,5 +1,4 @@
 import os
-from pprint import pprint
 
 import plotly.graph_objs as go
 from plotly.offline import init_notebook_mode
@@ -20,16 +19,21 @@ pio.orca.config.executable = path_to_orca
 
 
 def make_chart(bench, smartphones):
-    print('Start preparing data for a plot...')
+    print(f'Start preparing data for a {bench} plot...')
     data = prepare_data(bench, smartphones)
 
     print('Start making the plot...')
     y_axis_names = data[0]
     length = len(y_axis_names)
-
+    default_colors = ps['default_bar_color']
     traces = []
+
+    # we have to change the order of colors in case there are more than two
+    # colors needed
     if len(data) == 4:
-        ps['default_bar_color'].rotate(1)
+
+        default_colors = default_colors[-1:] + default_colors[:-1]
+
         print(ps['default_bar_color'])
 
     for i, x_axis in enumerate(data[1:]):
@@ -42,7 +46,7 @@ def make_chart(bench, smartphones):
             name=ps[bench]['traces_names'][i],
             orientation='h',
             marker=dict(
-                color=ps['default_bar_color'][i]
+                color=default_colors[i]
             )
         )
 
@@ -59,10 +63,9 @@ def make_chart(bench, smartphones):
 
     fig = go.Figure(data=traces, layout=layout)
 
-    print('Start rendering the plot...')
-    # pio.write_image(fig, 'images/GeekBench.png', width=1366, height=(1366 * 2))
+    print(f'Start rendering the {bench} plot...')
     pio.write_image(fig, f'images/{bench}.png', width=1366, height=1366)
-    print(f'Plot was saved as images/{bench}.png')
+    print(f'The plot was saved as images/{bench}.png')
 
 
     # color1 = [default_bar_color1] * length
