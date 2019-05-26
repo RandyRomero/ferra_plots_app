@@ -19,30 +19,43 @@ pio.orca.config.executable = path_to_orca
 
 def make_chart(bench, smartphones):
     print(f'Start preparing data for a {bench} plot...')
-    data = prepare_data(bench, smartphones)
+    axes, priority_smartphones = prepare_data(bench, smartphones)
 
     print('Start making the plot...')
-    y_axis_names = data[0]
-    length = len(y_axis_names)
+    y_axis_names = axes[0]
+    axis_length = len(y_axis_names)
     default_colors = ps['default_bar_color']
+    priority_colors = ps['priority_colors']
     traces = []
 
-    # we have to change the order of colors in case there are more than two
-    # colors needed
-    if len(data) == 4:
+    # We have to change the order of colors in case there are more than two
+    # colors needed. Basically we shift list so as them start with the last
+    # value instead of the first
+    if len(axes) == 4:
         default_colors = default_colors[-1:] + default_colors[:-1]
+        for i, colors in enumerate(priority_colors):
+            colors = colors[-1:] + colors[:-1]
+            priority_colors[i] = colors
 
-    for i, x_axis in enumerate(data[1:]):
+    for i, value in enumerate(axes[1:]):
+
+        # here we set default colors for each bar at first, then special colors
+        # to highlight smartphones of interest
+        colors = [default_colors[i]] * axis_length
+        for priority, smartphone_index in priority_smartphones.items():
+            colors[smartphone_index] = priority_colors[priority - 1][i]
+
         trace = go.Bar(
-            x=x_axis,
+            x=value,
             y=y_axis_names,
-            text=x_axis,
-            textfont={'color': ['#ffffff'] * length, 'size': [20] * length},
+            text=value,
+            textfont={'color': ['#ffffff'] * axis_length,
+                      'size': [20] * axis_length},
             textposition='auto',
             name=ps[bench]['traces_names'][i],
             orientation='h',
             marker=dict(
-                color=default_colors[i]
+                color=colors
             )
         )
 
@@ -61,11 +74,3 @@ def make_chart(bench, smartphones):
     print(f'Start rendering the {bench} plot...')
     pio.write_image(fig, f'images/{bench}.png', width=1366, height=1366)
     print(f'The plot was saved as images/{bench}.png')
-
-
-    # color1 = [default_bar_color1] * length
-    # color2 = [default_bar_color2] * length
-    #
-    # # blue-ish
-    # color1[15] = 'rgba(7, 118, 160, 1)'
-    # color2[15] = 'rgba(43, 132, 166, 1)'

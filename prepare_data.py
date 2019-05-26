@@ -8,6 +8,7 @@ from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 from config import path_to_excel_workbook, the_last_row, list_of_benchs
+from plot_settings import priority_colors
 
 
 class Benchmark:
@@ -270,6 +271,12 @@ class Smartphones:
                 if raw_date:
                     smartphone.date = raw_date.date()
 
+            priority = sheet.cell(row=row,
+                                  column=column_with_name - 2).value
+
+            if priority:
+                smartphone.priority = priority
+
             # gather results of a benchmark from a row in Excel
             results = []
             for i in range(1, columns_after_name + 1, 1):
@@ -344,11 +351,15 @@ class Smartphone:
     and results in benchmarks
     """
 
-    def __init__(self, name: str, date: Optional[datetime] = None) -> None:
+    def __init__(self, name: str,
+                 date: Optional[datetime] = None,
+                 priority: int = 0) -> None:
+
         self.name = name
         self.date = date
         self.chip: Optional[str] = None
         self.battery_capacity: Optional[str] = None
+        self.priority = priority
         self.geek_bench4: GeekBench4 = GeekBench4(self)
         self.sling_shot_extreme: SlingShotExtreme = SlingShotExtreme(self)
         self.antutu7: Antutu7 = Antutu7(self)
@@ -361,19 +372,27 @@ class Smartphone:
 
 def prepare_data(bench, smartphones):
 
+    # smartphones that I want to highlight with separate colors
+    priority_smartphones = {}
+
+    # make a list of smarphones with date and values of a benchmark of interest
     smartphones_list = [x for x in smartphones.all_smartphones.values()
                         if x.date and getattr(getattr(x, bench),
                                               'total_score')]
 
-    smartphones_list.sort(key=lambda x: x.date)
+    smartphones = sorted(smartphones_list, key=lambda x: x.date)[-30:]
 
-    smartphones = sorted(smartphones_list,
-                         key=lambda x: getattr(getattr(x, bench),
-                                               'total_score'))[-30:]
+    # sort the smartphones by the total score in benchmarks
+    smartphones.sort(key=lambda x: getattr(getattr(x, bench), 'total_score'))
+
+    # find indexes of smartphones that you want to highlight
+    for i, s in enumerate(smartphones):
+        if s.priority:
+            priority_smartphones[s.priority] = i
 
     y_axis_names = []
     x_axis_values = []
-    data = []
+    axes = []
 
     if bench == 'geek_bench4':
 
@@ -390,7 +409,7 @@ def prepare_data(bench, smartphones):
             sc_score = getattr(getattr(s, bench), 'single_core_score')
             x_axis_values2.append(sc_score)
 
-        data.extend([y_axis_names, x_axis_values, x_axis_values2])
+        axes.extend([y_axis_names, x_axis_values, x_axis_values2])
 
     elif bench == 'sling_shot_extreme' or bench == 'antutu7':
         for i, s in enumerate(smartphones):
@@ -401,7 +420,7 @@ def prepare_data(bench, smartphones):
             total_score = getattr(getattr(s, bench), 'total_score')
             x_axis_values.append(total_score)
 
-        data.extend([y_axis_names, x_axis_values])
+        axes.extend([y_axis_names, x_axis_values])
 
     elif bench == 'battery_test':
         x_axis_values2 = []
@@ -415,10 +434,10 @@ def prepare_data(bench, smartphones):
             x_axis_values2.append(getattr(getattr(s, bench), 'movie_score'))
             x_axis_values3.append(getattr(getattr(s, bench), 'game_score'))
 
-        data.extend([y_axis_names, x_axis_values, x_axis_values2,
+        axes.extend([y_axis_names, x_axis_values, x_axis_values2,
                      x_axis_values3])
 
-    return data
+    return axes, priority_smartphones
 
 
 def main():
