@@ -19,13 +19,13 @@ pio.orca.config.executable = path_to_orca
 
 def make_chart(bench, smartphones):
     print(f'Start preparing data for a {bench} plot...')
-    axes, priority_smartphones = prepare_data(bench, smartphones)
+    axes, highlighted_smartphones = prepare_data(bench, smartphones)
 
     print('Start making the plot...')
     y_axis_names = axes[0]
     axis_length = len(y_axis_names)
-    default_colors = ps['default_bar_color']
-    priority_colors = ps['priority_colors']
+    default_colors = ps['default_bar_colors']
+    highlight_colors = ps['highlight_colors']
     traces = []
 
     # We have to change the order of colors in case there are more than two
@@ -33,17 +33,15 @@ def make_chart(bench, smartphones):
     # value instead of the first
     if len(axes) == 4:
         default_colors = default_colors[-1:] + default_colors[:-1]
-        for i, colors in enumerate(priority_colors):
-            colors = colors[-1:] + colors[:-1]
-            priority_colors[i] = colors
+        highlight_colors = highlight_colors[-1:] + highlight_colors[:-1]
 
     for i, value in enumerate(axes[1:]):
 
         # here we set default colors for each bar at first, then special colors
         # to highlight smartphones of interest
         colors = [default_colors[i]] * axis_length
-        for priority, smartphone_index in priority_smartphones.items():
-            colors[smartphone_index] = priority_colors[priority - 1][i]
+        for smartphone_index in highlighted_smartphones:
+            colors[smartphone_index] = highlight_colors[i]
 
         trace = go.Bar(
             x=value,

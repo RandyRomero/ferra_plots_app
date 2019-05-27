@@ -8,7 +8,6 @@ from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 from config import path_to_excel_workbook, the_last_row, list_of_benchs
-from plot_settings import priority_colors
 
 
 class Benchmark:
@@ -24,8 +23,10 @@ class Benchmark:
     # representation of an instance of the class
     subtests: Tuple[str] = ()
 
-    def __init__(self, smartphone: 'Smartphone') -> None:
+    def __init__(self, smartphone: 'Smartphone',
+                 percentage_diff: Optional[int] = None) -> None:
         self.smartphone = smartphone
+        self.percentage_diff = percentage_diff
 
     def _get_bench_results(self) -> List[int]:
         """
@@ -132,6 +133,7 @@ class Smartphones:
     """
     def __init__(self) -> None:
         self.all_smartphones: Dict[str, Smartphone] = {}
+        self.highlighted_smartphones: List[Smartphone] = []
 
     @staticmethod
     def _open_sheet(sheet_name: str) -> Worksheet:
@@ -271,11 +273,12 @@ class Smartphones:
                 if raw_date:
                     smartphone.date = raw_date.date()
 
-            priority = sheet.cell(row=row,
-                                  column=column_with_name - 2).value
+            highlight = sheet.cell(row=row,
+                                   column=column_with_name - 2).value
 
-            if priority:
-                smartphone.priority = priority
+            if highlight == '+':
+                smartphone.highlight = True
+                self.highlighted_smartphones.append(smartphone)
 
             # gather results of a benchmark from a row in Excel
             results = []
@@ -294,6 +297,41 @@ class Smartphones:
         trs = self._make_table_reading_settings()
         for test in ('geek_bench4', 'sling_shot', 'antutu7', 'battery_test'):
             self._from_benchmark_table(trs[test])
+
+        # for bench in list_of_benchs:
+        #     self._evaluate_percentage_difference(bench)
+
+    # gonna work on this soon
+    # def _evaluate_percentage_difference(self, bench):
+    #
+    #     # for prior smartphone we set 100% by default
+    #     if len(self.highlighted_smartphones) == 1:
+    #         smartphone = self.highlighted_smartphones[0]
+    #         bench_obj = getattr(smartphone, bench)
+    #         setattr(bench_obj, 'percentage_diff', 100)
+    #         best_smartphone = self.highlighted_smartphones[0]
+    #         best_score = getattr(getattr(smartphone, bench), 'total_score')
+    #
+    #     # evaluating a smartphone with the best score out of scores of
+    #     # highlighted smartphones
+    #     else:
+    #         best_smartphone = self.highlighted_smartphones[0]
+    #         best_score = 0
+    #         for s in self.highlighted_smartphones[1:]:
+    #             score = getattr(getattr(s, bench), 'total_score')
+    #             if score > best_score:
+    #                 best_score = score
+    #                 best_smartphone = s
+    #
+    #         # set 100% difference for a reference smartphone
+    #         bench_obj = getattr(best_smartphone, bench)
+    #         setattr(bench_obj, 'percentage_diff', 100)
+    #
+    #     for s in self.all_smartphones:
+    #         score = getattr(getattr(s, bench), 'total_score')
+    #         percentage_diff = score * 100 / best_score
+    #         bench_obj = getattr(s, bench)
+    #         setattr(bench_obj, 'percentage_diff', percentage_diff)
 
     def write_to_excel(self) -> None:
 
@@ -353,13 +391,13 @@ class Smartphone:
 
     def __init__(self, name: str,
                  date: Optional[datetime] = None,
-                 priority: int = 0) -> None:
+                 highlight: bool = False) -> None:
 
         self.name = name
         self.date = date
         self.chip: Optional[str] = None
         self.battery_capacity: Optional[str] = None
-        self.priority = priority
+        self.highlight = highlight
         self.geek_bench4: GeekBench4 = GeekBench4(self)
         self.sling_shot_extreme: SlingShotExtreme = SlingShotExtreme(self)
         self.antutu7: Antutu7 = Antutu7(self)
@@ -373,9 +411,9 @@ class Smartphone:
 def prepare_data(bench, smartphones):
 
     # smartphones that I want to highlight with separate colors
-    priority_smartphones = {}
+    highlighted_smartphones = []
 
-    # make a list of smarphones with date and values of a benchmark of interest
+    # make a list of smartphones with date and values of a benchmark of interest
     smartphones_list = [x for x in smartphones.all_smartphones.values()
                         if x.date and getattr(getattr(x, bench),
                                               'total_score')]
@@ -387,8 +425,8 @@ def prepare_data(bench, smartphones):
 
     # find indexes of smartphones that you want to highlight
     for i, s in enumerate(smartphones):
-        if s.priority:
-            priority_smartphones[s.priority] = i
+        if s.highlight:
+            highlighted_smartphones.append(i)
 
     y_axis_names = []
     x_axis_values = []
@@ -437,7 +475,7 @@ def prepare_data(bench, smartphones):
         axes.extend([y_axis_names, x_axis_values, x_axis_values2,
                      x_axis_values3])
 
-    return axes, priority_smartphones
+    return axes, highlighted_smartphones
 
 
 def main():
