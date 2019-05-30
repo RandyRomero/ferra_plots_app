@@ -34,13 +34,14 @@ class DataForPlots:
                     return False
         return True
 
-    def get_axes(self) -> List[List[str], List[int], List[Optional[int]],
-                               List[Optional[int]], List[int]]:
+    def get_axes(self) -> Tuple[List[str], List[int], List[Optional[int]],
+                                List[Optional[int]]]:
         """
         Get all attributes which represent axes for a plot
-        :return: list of axes
+        :return: tuple of axes
         """
-        return [v for k, v in self.__dict__.items() if 'axis' in k]
+        return (self.y_axis_names, self.x_axis_values, self.x_axis_values2,
+                self.x_axis_values3)
 
 
 class Benchmark:
