@@ -1,6 +1,6 @@
 from datetime import datetime
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional, Dict, Tuple, Type, List
 
 import openpyxl
@@ -8,6 +8,39 @@ from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
 from config import path_to_excel_workbook, the_last_row, list_of_benchs
+
+
+@dataclass
+class DataForPlots:
+    """
+    Class for storing different lists that represents axes of a plot to
+    be rendered and a list with smartphones to be highlighted
+    """
+    y_axis_names: List[str] = field(default_factory=list)
+    x_axis_values: List[int] = field(default_factory=list)
+    x_axis_values2: List[Optional[int]] = field(default_factory=list)
+    x_axis_values3: List[Optional[int]] = field(default_factory=list)
+    highlighted_smartphones: List[int] = field(default_factory=list)
+
+    def all_axes_used(self) -> bool:
+        """
+        Finds out whether there is any empty list among the axes
+        ot not
+        :return: true or false respectively
+        """
+        for key, value in self.__dict__.items():
+            if 'axis' in key:
+                if not value:
+                    return False
+        return True
+
+    def get_axes(self) -> List[List[str], List[int], List[Optional[int]],
+                               List[Optional[int]], List[int]]:
+        """
+        Get all attributes which represent axes for a plot
+        :return: list of axes
+        """
+        return [v for k, v in self.__dict__.items() if 'axis' in k]
 
 
 class Benchmark:
@@ -408,74 +441,63 @@ class Smartphone:
                 f'{self.battery_capacity} tested on {self.date}')
 
 
-def prepare_data(bench, smartphones):
+def prepare_data(benchmark: str, smartphones: Smartphones) -> DataForPlots:
 
-    # smartphones that I want to highlight with separate colors
-    highlighted_smartphones = []
-
-    # make a list of smartphones with date and values of a benchmark of interest
+    # make a list of smartphones with date and values of a benchmark
+    # of interest
     smartphones_list = [x for x in smartphones.all_smartphones.values()
-                        if x.date and getattr(getattr(x, bench),
+                        if x.date and getattr(getattr(x, benchmark),
                                               'total_score')]
 
     smartphones = sorted(smartphones_list, key=lambda x: x.date)[-30:]
 
     # sort the smartphones by the total score in benchmarks
-    smartphones.sort(key=lambda x: getattr(getattr(x, bench), 'total_score'))
+    smartphones.sort(key=lambda x: getattr(getattr(x, benchmark),
+                                           'total_score'))
+
+    data_for_plots = DataForPlots()
 
     # find indexes of smartphones that you want to highlight
-    for i, s in enumerate(smartphones):
-        if s.highlight:
-            highlighted_smartphones.append(i)
+    for i, smrtphn in enumerate(smartphones):
+        if smrtphn.highlight:
+            data_for_plots.highlighted_smartphones.append(i)
 
-    y_axis_names = []
-    x_axis_values = []
-    axes = []
+    attr = 'chip' if benchmark != 'battery_test' else 'battery_capacity'
 
-    if bench == 'geek_bench4':
+    for indx, s in enumerate(smartphones):
+        # return name and chip of a smartphone with it index
+        # according to its performance in GeekBench 4
+        number = len(smartphones) - indx
+        if indx in data_for_plots.highlighted_smartphones:
+            strng = f'<b>{number}. {s.name} ({getattr(s, attr)}</b>)'
+        else:
+            strng = f'{number}. {s.name} ({getattr(s, attr)})'
 
-        x_axis_values2 = []
+        data_for_plots.y_axis_names.append(strng)
 
-        for i, s in enumerate(smartphones):
-            # return name and chip of a smartphone with it index
-            # according to its performance in GeekBench 4
-            y_axis_names.append(f'{len(smartphones) - i}. {s.name} ({s.chip})')
+        if benchmark == 'geek_bench4':
 
-            mc_score = getattr(getattr(s, bench), 'multi_core_score')
-            x_axis_values.append(mc_score)
+            mc_score = getattr(getattr(s, benchmark), 'multi_core_score')
+            data_for_plots.x_axis_values.append(mc_score)
 
-            sc_score = getattr(getattr(s, bench), 'single_core_score')
-            x_axis_values2.append(sc_score)
+            sc_score = getattr(getattr(s, benchmark), 'single_core_score')
+            data_for_plots.x_axis_values2.append(sc_score)
 
-        axes.extend([y_axis_names, x_axis_values, x_axis_values2])
+        elif benchmark == 'sling_shot_extreme' or benchmark == 'antutu7':
 
-    elif bench == 'sling_shot_extreme' or bench == 'antutu7':
-        for i, s in enumerate(smartphones):
+            total_score = getattr(getattr(s, benchmark), 'total_score')
+            data_for_plots.x_axis_values.append(total_score)
 
-            y_axis_names.append(f'{len(smartphones) - i}. {s.name} '
-                                f'({s.chip})')
+        elif benchmark == 'battery_test':
 
-            total_score = getattr(getattr(s, bench), 'total_score')
-            x_axis_values.append(total_score)
+            data_for_plots.x_axis_values.append(getattr(
+                getattr(s, benchmark), 'read_score'))
+            data_for_plots.x_axis_values2.append(getattr(
+                getattr(s, benchmark), 'movie_score'))
+            data_for_plots.x_axis_values3.append(getattr(
+                getattr(s, benchmark), 'game_score'))
 
-        axes.extend([y_axis_names, x_axis_values])
-
-    elif bench == 'battery_test':
-        x_axis_values2 = []
-        x_axis_values3 = []
-
-        for i, s in enumerate(smartphones):
-            y_axis_names.append(f'{len(smartphones) - i}. {s.name} '
-                                f'({s.battery_capacity})')
-
-            x_axis_values.append(getattr(getattr(s, bench), 'read_score'))
-            x_axis_values2.append(getattr(getattr(s, bench), 'movie_score'))
-            x_axis_values3.append(getattr(getattr(s, bench), 'game_score'))
-
-        axes.extend([y_axis_names, x_axis_values, x_axis_values2,
-                     x_axis_values3])
-
-    return axes, highlighted_smartphones
+    return data_for_plots
 
 
 def main():
