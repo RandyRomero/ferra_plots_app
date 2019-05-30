@@ -6,60 +6,70 @@ import plotly.io as pio
 
 from config import path_to_orca
 from prepare_data import prepare_data
+from plot_settings import plot_setting as ps
+
 init_notebook_mode(connected=True)
 
 if not os.path.exists('images'):
     os.mkdir('images')
 
-# todo make it accept command line arguments
 
 pio.orca.config.executable = path_to_orca
 
-print('Start preparing data for a plot...')
-y_axis_names, x_axis_values, x_axis_values2 = prepare_data()
 
-print('Start making the plot...')
-length = len(y_axis_names)
+def make_chart(bench, smartphones):
+    print(f'Start preparing data for a {bench} plot...')
+    data_for_plots = prepare_data(bench, smartphones)
+    axes = data_for_plots.get_axes()
 
-trace1 = go.Bar(
-    x=x_axis_values,
-    y=y_axis_names,
-    text=x_axis_values,
-    textfont={'color': ['#ffffff'] * length, 'size': [15] * length},
-    textposition='auto',
-    name='Все ядра',
-    orientation='h',
-    marker=dict(
-        color='rgba(255, 133, 0, 1)'
-    )
-)
-trace2 = go.Bar(
-    y=y_axis_names,
-    x=x_axis_values2,
-    text=x_axis_values2,
-    textfont={'color': ['#ffffff'] * length, 'size': [15] * length},
-    textposition='auto',
-    name='Одно ядро',
-    orientation='h',
-    marker=dict(
-        color='rgba(255, 172, 63, 1)'
-    )
-)
+    print('Start making the plot...')
+    axis_length = len(data_for_plots.y_axis_names)
+    default_colors = ps['default_bar_colors']
+    highlight_colors = ps['highlight_colors']
+    traces = []
 
-data = [trace1, trace2]
-layout = go.Layout(title='Geekbench 4',
-    barmode='stack',
-    legend={'font': {'size': 16}},
-     yaxis=dict(
-        showticklabels=True,
-        tickfont=dict(
-            size=14
-        ),
-    ))
+    # We have to change the order of colors in case there are more than two
+    # colors needed. Basically we shift list so as them start with the last
+    # value instead of the first
+    if data_for_plots.all_axes_used():
+        default_colors = default_colors[-1:] + default_colors[:-1]
+        highlight_colors = highlight_colors[-1:] + highlight_colors[:-1]
 
-fig = go.Figure(data=data, layout=layout)
-fig['layout']['margin'] = {'l': 350}
+    for i, value in enumerate(axes[1:]):
+        if not axes[i + 1]:
+            break
+        # here we set default colors for each bar at first, then special colors
+        # to highlight smartphones of interest
+        colors = [default_colors[i]] * axis_length
+        for smartphone_index in data_for_plots.highlighted_smartphones:
+            colors[smartphone_index] = highlight_colors[i]
 
-print('Start rendering the plot...')
-pio.write_image(fig, 'images/GeekBench.png', width=1366, height=(1366 * 2))
-print('Plot was saved as images/GeekBench.png')
+        trace = go.Bar(
+            x=value,
+            y=data_for_plots.y_axis_names,
+            text=value,
+            textfont={'color': ['#ffffff'] * axis_length,
+                      'size': [20] * axis_length},
+            textposition='auto',
+            name=ps[bench]['traces_names'][i],
+            orientation='h',
+            marker=dict(
+                color=colors
+            )
+        )
+
+        traces.append(trace)
+
+    layout = go.Layout(title=ps[bench]['title'],
+                       titlefont=ps['layout_settings']['titlefont'],
+                       margin=ps['layout_settings']['margin'],
+                       barmode='stack',
+                       legend=ps['layout_settings']['legend'],
+                       xaxis=dict(tickfont=ps['layout_settings']['tickfont']),
+                       yaxis=dict(tickfont=ps['layout_settings']['tickfont'],
+                                  showticklabels=True))
+
+    fig = go.Figure(data=traces, layout=layout)
+    print(f'Start rendering the {bench} plot...')
+    pio.write_image(fig, f'images/{bench}.png', width=1366, height=1366)
+    print(f'The plot was saved as images/{bench}.png')
