@@ -307,12 +307,13 @@ class Smartphones:
                 if raw_date:
                     smartphone.date = raw_date.date()
 
-            highlight = sheet.cell(row=row,
-                                   column=column_with_name - 2).value
+            action = sheet.cell(row=row, column=column_with_name - 2).value
 
-            if highlight == '+':
+            if action == '+':
                 smartphone.highlight = True
                 self.highlighted_smartphones.append(smartphone)
+            elif action == '-':
+                smartphone.ignore = True
 
             # gather results of a benchmark from a row in Excel
             results = []
@@ -425,13 +426,15 @@ class Smartphone:
 
     def __init__(self, name: str,
                  date: Optional[datetime] = None,
-                 highlight: bool = False) -> None:
+                 highlight: bool = False,
+                 ignore: bool = False) -> None:
 
         self.name = name
         self.date = date
+        self.ignore = ignore  # do not include to a plot if True
+        self.highlight = highlight  # highlight in a plot if True
         self.chip: Optional[str] = None
         self.battery_capacity: Optional[str] = None
-        self.highlight = highlight
         self.geek_bench4: GeekBench4 = GeekBench4(self)
         self.sling_shot_extreme: SlingShotExtreme = SlingShotExtreme(self)
         self.antutu7: Antutu7 = Antutu7(self)
@@ -448,8 +451,10 @@ def prepare_data(benchmark: str, smartphones: Smartphones) -> DataForPlots:
     # of interest
     smartphones_list = [x for x in smartphones.all_smartphones.values()
                         if x.date and getattr(getattr(x, benchmark),
-                                              'total_score')]
+                                              'total_score') and not x.ignore]
 
+    # Sort smartphones by date and take only the last 30 ones otherwise
+    # a plot will be way too big
     smartphones = sorted(smartphones_list, key=lambda x: x.date)[-30:]
 
     # sort the smartphones by the total score in benchmarks

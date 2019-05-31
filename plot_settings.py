@@ -33,7 +33,7 @@ plot_setting['antutu7'] = antutu7
 plot_setting['battery_test'] = battery_test
 
 layout_settings = {'titlefont': {'size': 36},
-                   'margin': {'pad': 15, 'l': 450},
+                   'margin': {'pad': 15, 'l': 500},
                    'legend': {'font': {'size': 20}, 'orientation': 'h'},
                    'tickfont': {'size': 20}
                    }
