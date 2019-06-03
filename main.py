@@ -2,13 +2,20 @@ from config import list_of_benchs
 from make_chart import make_chart
 from prepare_data import Smartphones
 
-# todo make it accept command line arguments
 
+def main() -> None:
+    """
+    Main entry point in the app.
 
-def main():
+    Runs all essential modules to read data
+    and render charts
+
+    :return: None
+    """
     smartphones = Smartphones()
     smartphones.read_from_excel_book()
 
+    # make a chart for every benchmark in a list
     for bench in list_of_benchs:
         make_chart(bench, smartphones)
 
