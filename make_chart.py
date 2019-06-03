@@ -1,11 +1,10 @@
 import os
 
 import plotly.graph_objs as go
-from plotly.offline import init_notebook_mode
 import plotly.io as pio
+from plotly.offline import init_notebook_mode
 
 from config import path_to_orca
-from prepare_data import prepare_data
 from plot_settings import plot_setting as ps
 
 init_notebook_mode(connected=True)
@@ -13,13 +12,12 @@ init_notebook_mode(connected=True)
 if not os.path.exists('images'):
     os.mkdir('images')
 
-
 pio.orca.config.executable = path_to_orca
 
 
 def make_chart(bench, smartphones):
     print(f'Start preparing data for a {bench} plot...')
-    data_for_plots = prepare_data(bench, smartphones)
+    data_for_plots = smartphones.prepare_data(bench)
     axes = data_for_plots.get_axes()
 
     print('Start making the plot...')
