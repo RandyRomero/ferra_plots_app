@@ -1,4 +1,4 @@
-from config import list_of_benchs
+from ferra_plots_config import list_of_benchs
 from make_chart import make_chart
 from prepare_data import Smartphones
 

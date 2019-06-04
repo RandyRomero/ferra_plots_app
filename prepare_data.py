@@ -7,7 +7,8 @@ import openpyxl
 from openpyxl import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
-from config import path_to_excel_workbook, the_last_row, list_of_benchs
+from ferra_plots_config import path_to_excel_workbook, the_last_row, \
+    list_of_benchs
 
 
 @dataclass
