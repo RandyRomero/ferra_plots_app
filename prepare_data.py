@@ -1,14 +1,17 @@
 import re
+from typing import TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict, Tuple, Type, List
 
 import openpyxl
 from openpyxl import Workbook
-from openpyxl.worksheet.worksheet import Worksheet
 
 from ferra_plots_config import path_to_excel_workbook, the_last_row, \
     list_of_benchs
+
+if TYPE_CHECKING:
+    from openpyxl.worksheet.worksheet import Worksheet
 
 
 @dataclass
