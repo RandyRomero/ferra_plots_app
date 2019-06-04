@@ -1,21 +1,35 @@
+"""
+Module that shapes all the information about smartphones to a from that
+plotly - library for making charts - understands
+"""
+
+from __future__ import annotations
+
 import os
+from typing import TYPE_CHECKING
 
 import plotly.graph_objs as go
 import plotly.io as pio
 from plotly.offline import init_notebook_mode
 
-from config import path_to_orca
+from ferra_plots_config import path_to_orca
 from plot_settings import plot_setting as ps
 
+if TYPE_CHECKING:
+    from prepare_data import Smartphones
+
+
+# make plotly work offline
 init_notebook_mode(connected=True)
 
 if not os.path.exists('images'):
     os.mkdir('images')
 
+# set a link to the electron app which renders charts
 pio.orca.config.executable = path_to_orca
 
 
-def make_chart(bench, smartphones):
+def make_chart(bench: str, smartphones: Smartphones):
     print(f'Start preparing data for a {bench} plot...')
     data_for_plots = smartphones.prepare_data(bench)
     axes = data_for_plots.get_axes()

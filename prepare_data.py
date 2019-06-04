@@ -1,13 +1,19 @@
+from __future__ import annotations
+
 import re
+from typing import TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict, Tuple, Type, List
 
 import openpyxl
 from openpyxl import Workbook
-from openpyxl.worksheet.worksheet import Worksheet
 
-from config import path_to_excel_workbook, the_last_row, list_of_benchs
+from ferra_plots_config import path_to_excel_workbook, the_last_row, \
+    list_of_benchs
+
+if TYPE_CHECKING:
+    from openpyxl.worksheet.worksheet import Worksheet
 
 
 @dataclass
@@ -88,6 +94,22 @@ class Benchmark:
         return response
 
 
+@dataclass
+class TableReadingSettings:
+
+    """
+    Class to store settings for reading a specific table from
+    an Excel sheet
+    """
+    sheet_name: str
+    table_start_row: int
+    column_with_name: int
+    columns_after_name: int
+    bench_class: Type[Benchmark]
+    bench_attr: str
+    chip_or_capacity: str
+
+
 class GeekBench4(Benchmark):
 
     """
@@ -156,12 +178,40 @@ class BatteryTest(Benchmark):
         self.total_score: int = movie_score + read_score + game_score
 
 
+class Smartphone:
+
+    """
+    Class that contains info about a smartphone: name, chip, battery capacity
+    and results in benchmarks
+    """
+
+    def __init__(self, name: str,
+                 date: Optional[datetime] = None,
+                 highlight: bool = False,
+                 ignore: bool = False) -> None:
+
+        self.name = name
+        self.date = date
+        self.ignore = ignore  # do not include to a plot if True
+        self.highlight = highlight  # highlight in a plot if True
+        self.chip: Optional[str] = None
+        self.battery_capacity: Optional[str] = None
+        self.geek_bench4: GeekBench4 = GeekBench4(self)
+        self.sling_shot_extreme: SlingShotExtreme = SlingShotExtreme(self)
+        self.antutu7: Antutu7 = Antutu7(self)
+        self.battery_test = BatteryTest(self)
+
+    def __str__(self) -> str:
+        return (f'Smartphone {self.name} on {self.chip} with '
+                f'{self.battery_capacity} tested on {self.date}')
+
+
 class Smartphones:
 
     """
     Special class to manage instances of a Smartphone class
 
-    It creates new Smarphone instances by reading particular Excel file,
+    It creates new Smartphone instances by reading particular Excel file,
     read and fill in scores from benchmarks. Also it can write this data
     to another Excel file - just to be sure it was read right
     """
@@ -195,7 +245,7 @@ class Smartphones:
         return name, attr
 
     @staticmethod
-    def _make_table_reading_settings() -> Dict[str, 'TableReadingSettings']:
+    def _make_table_reading_settings() -> Dict[str, TableReadingSettings]:
 
         """
         Method to make different settings for reading different excel sheets
@@ -203,21 +253,6 @@ class Smartphones:
 
         :return: a dictionary with objects of TableReadingSettings class
         """
-
-        @dataclass
-        class TableReadingSettings:
-
-            """
-            Class to store settings for reading a specific table from
-            an Excel sheet
-            """
-            sheet_name: str
-            table_start_row: int
-            column_with_name: int
-            columns_after_name: int
-            bench_class: Type[Benchmark]
-            bench_attr: str
-            chip_or_capacity: str
 
         geekbench4_trs = TableReadingSettings(sheet_name='GeekBench 4',
                                               table_start_row=12,
@@ -491,34 +526,6 @@ class Smartphones:
 
         wb.save(filename=dest_filename)
         print(f'Wrote down data to {dest_filename}')
-
-
-class Smartphone:
-
-    """
-    Class that contains info about a smartphone: name, chip, battery capacity
-    and results in benchmarks
-    """
-
-    def __init__(self, name: str,
-                 date: Optional[datetime] = None,
-                 highlight: bool = False,
-                 ignore: bool = False) -> None:
-
-        self.name = name
-        self.date = date
-        self.ignore = ignore  # do not include to a plot if True
-        self.highlight = highlight  # highlight in a plot if True
-        self.chip: Optional[str] = None
-        self.battery_capacity: Optional[str] = None
-        self.geek_bench4: GeekBench4 = GeekBench4(self)
-        self.sling_shot_extreme: SlingShotExtreme = SlingShotExtreme(self)
-        self.antutu7: Antutu7 = Antutu7(self)
-        self.battery_test = BatteryTest(self)
-
-    def __str__(self) -> str:
-        return (f'Smartphone {self.name} on {self.chip} with '
-                f'{self.battery_capacity} tested on {self.date}')
 
 
 def main():
