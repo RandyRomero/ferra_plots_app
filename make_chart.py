@@ -5,6 +5,7 @@ plotly - library for making charts - understands
 
 from __future__ import annotations
 
+import json
 import os
 from typing import TYPE_CHECKING
 
@@ -13,7 +14,6 @@ import plotly.io as pio
 from plotly.offline import init_notebook_mode
 
 from ferra_plots_config import path_to_orca
-from plot_settings import plot_setting as ps
 
 if TYPE_CHECKING:
     from prepare_data import Smartphones
@@ -27,6 +27,9 @@ if not os.path.exists('images'):
 
 # set a link to the electron app which renders charts
 pio.orca.config.executable = path_to_orca
+
+with open('plot_settings.json', 'r', encoding='utf8') as infile:
+    ps = json.load(infile)
 
 
 def make_chart(bench: str, smartphones: Smartphones):
