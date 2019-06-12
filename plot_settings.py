@@ -1,3 +1,5 @@
+import json
+
 plot_setting = {}
 
 default_bar_colors = [
@@ -39,3 +41,8 @@ layout_settings = {'titlefont': {'size': 36},
                    }
 
 plot_setting['layout_settings'] = layout_settings
+
+with open('plot_settings.json', 'w', encoding='utf8') as outfile:
+    temp = json.dumps(plot_setting, indent=4, sort_keys=True,
+                      separators=(',', ': '), ensure_ascii=False)
+    outfile.write(temp)

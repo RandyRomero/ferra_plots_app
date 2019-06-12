@@ -1,0 +1,57 @@
+{
+    "antutu7": {
+        "title": "Производительность всей системы (тест Antutu Benchmark 7), баллы",
+        "traces_names": [
+            "баллы"
+        ]
+    },
+    "battery_test": {
+        "title": "Время автономной работы, минуты",
+        "traces_names": [
+            "Чтение",
+            "Видео",
+            "Игры"
+        ]
+    },
+    "default_bar_colors": [
+        "rgba(255, 133, 0, 1)",
+        "rgba(255, 172, 83, 1)",
+        "rgba(211, 110, 0, 1)"
+    ],
+    "geek_bench4": {
+        "title": "Мощность процессора (тест GeekBench 4), баллы",
+        "traces_names": [
+            "Все ядра",
+            "Одно ядро"
+        ]
+    },
+    "highlight_colors": [
+        "rgba(7, 167, 229, 1)",
+        "rgba(81, 189, 230, 1)",
+        "rgba(2, 97, 133, 1)"
+    ],
+    "layout_settings": {
+        "legend": {
+            "font": {
+                "size": 20
+            },
+            "orientation": "h"
+        },
+        "margin": {
+            "l": 550,
+            "pad": 15
+        },
+        "tickfont": {
+            "size": 20
+        },
+        "titlefont": {
+            "size": 36
+        }
+    },
+    "sling_shot_extreme": {
+        "title": "Игровая производительность (тест 3DMark Sling Shot Extreme), баллы",
+        "traces_names": [
+            "баллы"
+        ]
+    }
+}
