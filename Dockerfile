@@ -4,7 +4,9 @@ RUN adduser -D ferra_plots
 
 WORKDIR /home/ferra_pots
 
-COPY ferra_plots_config.py ferra_plots_config.py
+COPY ferraplots1-4c84ccdfd4cd.json ferraplots1-4c84ccdfd4cd.json
+COPY app_config.py app_config.py
+COPY .env .env
 COPY main.py main.py
 COPY make_chart.py make_chart.py
 COPY plot_settings.json plot_settings.json

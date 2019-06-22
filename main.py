@@ -1,6 +1,6 @@
-# Main entry point in the app
+# Main entry point to the app
 
-from ferra_plots_config import list_of_benchs
+from app_config import LIST_OF_BENCHS
 from make_chart import make_chart
 from prepare_data import Smartphones
 
@@ -18,7 +18,7 @@ def main() -> None:
     smartphones.read_from_excel_book()
 
     # make a chart for every benchmark in a list
-    for bench in list_of_benchs:
+    for bench in LIST_OF_BENCHS:
         make_chart(bench, smartphones)
 
 
