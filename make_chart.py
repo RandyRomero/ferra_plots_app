@@ -13,7 +13,7 @@ import plotly.graph_objs as go
 import plotly.io as pio
 from plotly.offline import init_notebook_mode
 
-from ferra_plots_config import path_to_orca
+import app_config as cfg
 
 if TYPE_CHECKING:
     from prepare_data import Smartphones
@@ -26,7 +26,7 @@ if not os.path.exists('images'):
     os.mkdir('images')
 
 # set a link to the electron app which renders charts
-pio.orca.config.executable = path_to_orca
+pio.orca.config.executable = cfg.PATH_TO_ORCA
 
 with open('plot_settings.json', 'r', encoding='utf8') as infile:
     ps = json.load(infile)

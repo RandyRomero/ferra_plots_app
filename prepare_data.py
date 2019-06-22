@@ -1,20 +1,13 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Dict, Tuple, Type, List
 
-import openpyxl
 from openpyxl import Workbook
-
-from ferra_plots_config import path_to_excel_workbook, the_last_row, \
-    list_of_benchs
-
-if TYPE_CHECKING:
-    from openpyxl.worksheet.worksheet import Worksheet
-
+from gspread_downloader import get_spreadsheet
+import app_config as cfg
 
 @dataclass
 class DataForPlots:
@@ -219,14 +212,6 @@ class Smartphones:
         self.all_smartphones: Dict[str, Smartphone] = {}
         self.highlighted_smartphones: List[Smartphone] = []
 
-    @staticmethod
-    def _open_sheet(sheet_name: str) -> Worksheet:
-        """
-        Open a sheet in Excel file with a given name
-        """
-        wb = openpyxl.load_workbook(path_to_excel_workbook)
-        print(f'type(wb[sheet_name]): {type(wb[sheet_name])}')
-        return wb[sheet_name]
 
     @staticmethod
     def _split_name(raw_name: str) -> Tuple[str, str]:
@@ -255,7 +240,7 @@ class Smartphones:
         """
 
         geekbench4_trs = TableReadingSettings(sheet_name='GeekBench 4',
-                                              table_start_row=12,
+                                              table_start_row=4,
                                               column_with_name=32,
                                               columns_after_name=2,
                                               bench_class=GeekBench4,
@@ -264,7 +249,7 @@ class Smartphones:
 
         sling_shot_extreme_trs = TableReadingSettings(
             sheet_name='3DMark Sling Shot Extreme',
-            table_start_row=5,
+            table_start_row=4,
             column_with_name=29,
             columns_after_name=1,
             bench_class=SlingShotExtreme,
@@ -272,7 +257,7 @@ class Smartphones:
             chip_or_capacity='chip')
 
         antutu7_trs = TableReadingSettings(sheet_name='Antutu Benchmark 7',
-                                           table_start_row=3,
+                                           table_start_row=4,
                                            column_with_name=29,
                                            columns_after_name=1,
                                            bench_class=Antutu7,
@@ -309,20 +294,15 @@ class Smartphones:
         bench_class, bench_attr, chip_or_capacity = trs.__dict__.values()
 
         # where my table with results of smartphones begins
-        sheet = self._open_sheet(sheet_name)
+        sheet = get_spreadsheet(sheet_name)
 
         # read the table row by row to read results, make respective classes
-        for row in range(table_start_row, the_last_row, 1):
-            raw_name = sheet.cell(row=row, column=column_with_name).value
+        for lst in sheet:
 
-            # means that script has reached the end of the table with results
-            if not raw_name:
-                print(f'\nDone working on {bench_class.name} table\n')
-                return
+            raw_name = lst[2]
 
             # split name from an additional characteristic in parentheses
             name, characteristic = self._split_name(raw_name)
-
             # get a smartphone object from the dict or create new one
             if name not in self.all_smartphones.keys():
                 smartphone = Smartphone(name)
@@ -337,25 +317,22 @@ class Smartphones:
 
             # set date if it hasn't been done yet and if it is possible
             if not smartphone.date:
-                raw_date = sheet.cell(row=row,
-                                      column=column_with_name - 1).value
-                if raw_date:
-                    smartphone.date = raw_date.date()
+                if lst[1]:
+                    smartphone.date = datetime.strptime(lst[1], '%d.%m.%Y')
 
-            action = sheet.cell(row=row, column=column_with_name - 2).value
-
+            action = lst[0]
             if action == '+':
+                # highlight the smartphone on plots
                 smartphone.highlight = True
                 self.highlighted_smartphones.append(smartphone)
             elif action == '-':
+                # don't show the smartphone on plots
                 smartphone.ignore = True
 
             # gather results of a benchmark from a row in Excel
-            results = []
-            for i in range(1, columns_after_name + 1, 1):
-                result = sheet.cell(row=row, column=column_with_name + i).value
-                results.append(result)
-
+            results = lst[3:-1] if len(lst[3:]) > 1 else [lst[3]]
+            for i, r in enumerate(results):
+                results[i] = int(results[i])
             bench = bench_class(smartphone, *results)
             setattr(smartphone, bench_attr, bench)
 
@@ -476,13 +453,14 @@ class Smartphones:
         :return: None
         """
         trs = self._make_table_reading_settings()
-        for bench in list_of_benchs:
+        for bench in cfg.LIST_OF_BENCHS:
             self._from_benchmark_table(trs[bench])
 
     def write_to_excel(self) -> None:
 
         """
-        Save data about smartphones and their benchmark scores to Excel table
+        Save data about smartphones and their benchmark scores to an Excel
+        table
         """
 
         smartphones = list(self.all_smartphones.values())
@@ -512,7 +490,7 @@ class Smartphones:
             smartphone_row.extend([s.date, s.name, s.chip, s.battery_capacity])
 
             # Get results of benchmarking a smartphone from its class
-            for bench_name in list_of_benchs:
+            for bench_name in cfg.LIST_OF_BENCHS:
                 bench = getattr(s, bench_name)
                 for k, v in bench.__dict__.items():
                     if 'score' in k:
