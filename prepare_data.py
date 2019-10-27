@@ -9,6 +9,7 @@ from openpyxl import Workbook
 from gspread_downloader import get_spreadsheet
 import app_config as cfg
 
+
 @dataclass
 class DataForPlots:
     """
@@ -66,7 +67,22 @@ class Benchmark:
         Returns a list of integers that represent results of a smartphone in
         subtests of a given benchmark
         """
-        return [v for (k, v) in self.__dict__.items() if 'score' in k]
+        return [v for (k, v) in self.get_items() if 'score' in k]
+
+    def get_keys(self):
+        return self.__dict__.keys()
+
+    def get_values(self):
+        return self.__dict__.values()
+
+    def get_items(self):
+        return self.__dict__.items()
+
+    def __getitem__(self, value):
+        return getattr(self, value)
+
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
 
     def __str__(self) -> str:
         """
@@ -101,6 +117,9 @@ class TableReadingSettings:
     bench_class: Type[Benchmark]
     bench_attr: str
     chip_or_capacity: str
+
+    def get_values(self):
+        return self.__dict__.values()
 
 
 class GeekBench4(Benchmark):
@@ -194,6 +213,21 @@ class Smartphone:
         self.antutu7: Antutu7 = Antutu7(self)
         self.battery_test = BatteryTest(self)
 
+    def get_keys(self):
+        return self.__dict__.keys()
+
+    def get_values(self):
+        return self.__dict__.values()
+
+    def get_items(self):
+        return self.__dict__.items()
+
+    def __getitem__(self, value):
+        return getattr(self, value)
+
+    def __setitem__(self, key, value):
+        setattr(self, key, value)
+
     def __str__(self) -> str:
         return (f'Smartphone {self.name} on {self.chip} with '
                 f'{self.battery_capacity} tested on {self.date}')
@@ -211,7 +245,6 @@ class Smartphones:
     def __init__(self) -> None:
         self.all_smartphones: Dict[str, Smartphone] = {}
         self.highlighted_smartphones: List[Smartphone] = []
-
 
     @staticmethod
     def _split_name(raw_name: str) -> Tuple[str, str]:
@@ -291,7 +324,7 @@ class Smartphones:
 
         # Get different setting for different benchmarks
         sheet_name, table_start_row, column_with_name, columns_after_name, \
-        bench_class, bench_attr, chip_or_capacity = trs.__dict__.values()
+        bench_class, bench_attr, chip_or_capacity = trs.get_values()
 
         # where my table with results of smartphones begins
         sheet = get_spreadsheet(sheet_name)
@@ -313,7 +346,7 @@ class Smartphones:
                 print(f'UPDATE {name} from {sheet_name}')
 
             # set chip or battery capacity value to a smartphone object
-            setattr(smartphone, chip_or_capacity, characteristic)
+            smartphone[chip_or_capacity] = characteristic
 
             # set date if it hasn't been done yet and if it is possible
             if not smartphone.date:
@@ -334,38 +367,38 @@ class Smartphones:
             for i, r in enumerate(results):
                 results[i] = int(results[i])
             bench = bench_class(smartphone, *results)
-            setattr(smartphone, bench_attr, bench)
+            smartphone[bench_attr] = bench
 
     def _evaluate_percentage_difference(self, bench, smartphones):
-
+        # TODO make docstring and type hints
         # for a smartphones to be highlighted we set 100% by default
         if len(self.highlighted_smartphones) == 1:
             best_smartphone = self.highlighted_smartphones[0]
-            ref_score = getattr(getattr(best_smartphone, bench), 'total_score')
+            ref_score = best_smartphone[bench]['total_score']
 
         # evaluating a smartphone with the best score out of scores of
         # highlighted smartphones
         elif len(self.highlighted_smartphones) > 1:
             best_smartphone = self.highlighted_smartphones[0]
-            ref_score = getattr(getattr(best_smartphone, bench), 'total_score')
+            ref_score = best_smartphone[bench]['total_score']
 
-            for s in self.highlighted_smartphones[1:]:
-                score = getattr(getattr(s, bench), 'total_score')
+            for smartphone in self.highlighted_smartphones[1:]:
+                score = smartphone[bench]['total_score']
                 if score > ref_score:
                     ref_score = score
-                    best_smartphone = s
+                    best_smartphone = smartphone
 
         else:
             # if there is not smartphones to be highlighted, we set 100%
             # just to the one with the highest score in bench
             best_smartphone = smartphones[-1]
-            ref_score = getattr(getattr(smartphones[-1], bench), 'total_score')
+            ref_score = smartphones[-1][bench]['total_score']
 
         # set 100% difference for a reference smartphone
-        setattr(getattr(best_smartphone, bench), 'percentage_diff', '100')
+        best_smartphone[bench]['percentage_diff'] = '100'
 
         for s in smartphones:
-            score = getattr(getattr(s, bench), 'total_score')
+            score = s[bench]['total_score']
             difference = int(score * 100 / ref_score)
             if score < ref_score:
                 percentage_diff = f'-{100 - difference}'
@@ -373,24 +406,22 @@ class Smartphones:
                 percentage_diff = f'+{difference - 100}'
             else:
                 percentage_diff = str(difference)
-            bench_obj = getattr(s, bench)
-            setattr(bench_obj, 'percentage_diff', percentage_diff)
+            s[bench]['percentage_diff'] = percentage_diff
 
     def prepare_data(self, benchmark: str) -> DataForPlots:
 
         # make a list of smartphones with date and values of a benchmark
         # of interest
         smartphones = [x for x in self.all_smartphones.values()
-                       if x.date and getattr(
-                getattr(x, benchmark), 'total_score') and not x.ignore]
+                       if x.date and x[benchmark]['total_score']
+                       and not x.ignore]
 
         # Sort smartphones by date and take only the last 30 ones otherwise
         # a plot will be way too big
         smartphones = sorted(smartphones, key=lambda x: x.date)[-30:]
 
         # sort the smartphones by the total score in benchmarks
-        smartphones.sort(key=lambda x: getattr(getattr(x, benchmark),
-                                               'total_score'))
+        smartphones.sort(key=lambda x: x[benchmark]['total_score'])
 
         self._evaluate_percentage_difference(benchmark, smartphones)
 
@@ -407,43 +438,42 @@ class Smartphones:
             # return name and chip of a smartphone with it index
             # according to its performance in GeekBench 4
             number = len(smartphones) - indx
-            percentage = getattr(getattr(s, benchmark), 'percentage_diff')
+            percentage = s[benchmark]['percentage_diff']
             if indx in data_for_plots.highlighted_smartphones:
                 if percentage == '100':
-                    strng = f'<b>{number}. {s.name} ({getattr(s, attr)})</b>'
+                    strng = f'<b>{number}. {s.name} ({s[attr]})</b>'
                 else:
-                    strng = (f'<b>{number}. {s.name} ({getattr(s, attr)}) '
+                    strng = (f'<b>{number}. {s.name} ({s[attr]}) '
                              f'({percentage}%)</b>')
             else:
                 if percentage == '100':
-                    strng = f'{number}. {s.name} ({getattr(s, attr)})'
+                    strng = f'{number}. {s.name} ({s[attr]})'
                 else:
-                    strng = (f'{number}. {s.name} ({getattr(s, attr)}) '
+                    strng = (f'{number}. {s.name} ({s[attr]}) '
                              f'({percentage}%)')
 
             data_for_plots.y_axis_names.append(strng)
 
             if benchmark == 'geek_bench4':
 
-                mc_score = getattr(getattr(s, benchmark), 'multi_core_score')
+                mc_score = s[benchmark]['multi_core_score']
                 data_for_plots.x_axis_values.append(mc_score)
 
-                sc_score = getattr(getattr(s, benchmark), 'single_core_score')
+                sc_score = s[benchmark]['single_core_score']
                 data_for_plots.x_axis_values2.append(sc_score)
 
             elif benchmark == 'sling_shot_extreme' or benchmark == 'antutu7':
 
-                total_score = getattr(getattr(s, benchmark), 'total_score')
+                total_score = s[benchmark]['total_score']
                 data_for_plots.x_axis_values.append(total_score)
 
             elif benchmark == 'battery_test':
 
-                data_for_plots.x_axis_values.append(getattr(
-                    getattr(s, benchmark), 'read_score'))
-                data_for_plots.x_axis_values2.append(getattr(
-                    getattr(s, benchmark), 'movie_score'))
-                data_for_plots.x_axis_values3.append(getattr(
-                    getattr(s, benchmark), 'game_score'))
+                data_for_plots.x_axis_values.append(s[benchmark]['read_score'])
+                data_for_plots.x_axis_values2.append(
+                    s[benchmark]['movie_score'])
+                data_for_plots.x_axis_values3.append(
+                    s[benchmark]['game_score'])
 
         return data_for_plots
 
@@ -491,7 +521,7 @@ class Smartphones:
 
             # Get results of benchmarking a smartphone from its class
             for bench_name in cfg.LIST_OF_BENCHS:
-                bench = getattr(s, bench_name)
+                bench = s[bench_name]
                 for k, v in bench.__dict__.items():
                     if 'score' in k:
                         smartphone_row.append(v)
